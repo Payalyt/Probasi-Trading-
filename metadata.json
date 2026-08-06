@@ -1,0 +1,6 @@
+{
+  "name": "Probashi Trading",
+  "description": "Professional binary options trading platform inspired by Olymp Trade with live charts, wallet management, deposit/withdrawal gateways, and advanced trading terminal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
