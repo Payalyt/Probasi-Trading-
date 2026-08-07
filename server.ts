@@ -190,6 +190,10 @@ async function startServer() {
         e.waitUntil(clients.claim());
       });
       self.addEventListener('fetch', (e) => {
+        // Bypass service worker for API calls
+        if (e.request.url.includes('/api/')) {
+          return;
+        }
         e.respondWith(fetch(e.request));
       });
     `);

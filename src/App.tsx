@@ -33,29 +33,48 @@ export function App() {
 
   // Initial user session load and polling
   const fetchSessionData = async () => {
+    // 1. Core User Data (Critical for loading the app)
     try {
-      const [meRes, usersRes, tradesRes, depositsRes] = await Promise.all([
-        fetch('/api/user/me'),
-        fetch('/api/admin/users'),
-        fetch('/api/trades'),
-        fetch('/api/deposits')
-      ]);
-
+      const meRes = await fetch('/api/user/me');
       if (meRes.ok) {
         const user = await meRes.json();
         setCurrentUser(user);
       }
+    } catch (err) {
+      console.error('Failed to sync me session state', err);
+    }
+
+    // 2. Admin Users Data (Non-blocking)
+    try {
+      const usersRes = await fetch('/api/admin/users');
       if (usersRes.ok) {
-        setAllUsers(await usersRes.json());
-      }
-      if (tradesRes.ok) {
-        setTrades(await tradesRes.json());
-      }
-      if (depositsRes.ok) {
-        setDeposits(await depositsRes.json());
+        const data = await usersRes.json();
+        setAllUsers(data);
       }
     } catch (err) {
-      console.error('Failed to sync session state', err);
+      console.error('Failed to sync admin users state', err);
+    }
+
+    // 3. Trades Data (Non-blocking)
+    try {
+      const tradesRes = await fetch('/api/trades');
+      if (tradesRes.ok) {
+        const data = await tradesRes.json();
+        setTrades(data);
+      }
+    } catch (err) {
+      console.error('Failed to sync trades state', err);
+    }
+
+    // 4. Deposits Data (Non-blocking)
+    try {
+      const depositsRes = await fetch('/api/deposits');
+      if (depositsRes.ok) {
+        const data = await depositsRes.json();
+        setDeposits(data);
+      }
+    } catch (err) {
+      console.error('Failed to sync deposits state', err);
     }
   };
 
