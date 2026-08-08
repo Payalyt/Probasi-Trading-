@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
 interface AuthScreenProps {
   onLogin: () => void;
@@ -18,15 +16,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+      const endpoint = isSignUp ? '/api/signup' : '/api/login';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        onLogin();
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        setError(data.error || 'Authentication failed');
       }
-      onLogin();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      setError('An error occurred during authentication');
     }
   };
 
