@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
 interface AuthScreenProps {
   onLogin: () => void;
@@ -17,17 +15,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
 
-    try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
-      onLogin();
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Authentication failed');
+    // Simulate demo login
+    if (email === 'demo@probashi.com' && password === 'password') {
+        onLogin();
+        return;
     }
+
+    setError('Invalid credentials for demo');
   };
 
   return (
