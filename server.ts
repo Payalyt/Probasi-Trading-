@@ -228,7 +228,7 @@ async function startServer() {
 
   app.post("/api/login", (req, res) => {
     const { email, password } = req.body;
-    const user = users.find(u => u.email === email);
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
     currentUserId = user.id;
     res.json({ success: true, user });
@@ -236,11 +236,12 @@ async function startServer() {
 
   app.post("/api/signup", (req, res) => {
     const { email, password } = req.body;
-    if (users.find(u => u.email === email)) return res.status(400).json({ error: "User already exists" });
+    const lowerEmail = email.toLowerCase();
+    if (users.find(u => u.email.toLowerCase() === lowerEmail)) return res.status(400).json({ error: "User already exists" });
     const newUser: User = {
       id: "usr_" + crypto.randomBytes(4).toString('hex'),
       name: email.split('@')[0],
-      email: email,
+      email: lowerEmail,
       actual_balance: 0,
       displayed_balance: 0,
       demo_balance: 10000,
