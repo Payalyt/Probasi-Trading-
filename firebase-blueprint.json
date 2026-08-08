@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "actual_balance": { "type": "number" },
+        "displayed_balance": { "type": "number" },
+        "demo_balance": { "type": "number" },
+        "wallet_address": { "type": "string" },
+        "status": { "type": "string" },
+        "role": { "type": "string" },
+        "risk_acknowledged": { "type": "boolean" }
+      },
+      "required": ["id", "email"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    }
+  }
+}

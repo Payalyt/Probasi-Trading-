@@ -3,6 +3,7 @@
   "appId": "1:218811359782:web:92c71553e4d0d026007ce7",
   "apiKey": "AIzaSyBeIcIPA5-PQP4sQV6lIo-sbAz3G0-F2CA",
   "authDomain": "mythic-idea-56ppv.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-tradingplatforms-22909dd2-7f49-4673-87b9-00ca7e6e6d68",
   "storageBucket": "mythic-idea-56ppv.firebasestorage.app",
   "messagingSenderId": "218811359782",
   "measurementId": "",
