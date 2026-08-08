@@ -1,6 +1,8 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import crypto from "crypto";
+import WebSocket from "ws";
 
 interface User {
   id: string;
@@ -12,6 +14,7 @@ interface User {
   wallet_address: string;
   status: 'active' | 'blocked';
   role: 'user' | 'admin';
+  risk_acknowledged?: boolean;
 }
 
 interface Trade {
@@ -37,7 +40,7 @@ interface Deposit {
   id: string;
   user_id: string;
   user_name: string;
-  method: 'Bkash' | 'Nagad' | 'Crypto' | 'Bank Transfer';
+  method: 'Bkash' | 'Nagad' | 'Rocket';
   amount: number;
   transaction_id: string;
   created_at: number;
@@ -48,7 +51,7 @@ interface Withdrawal {
   id: string;
   user_id: string;
   user_name: string;
-  method: 'Bkash' | 'Nagad' | 'Crypto' | 'Bank Transfer';
+  method: 'Bkash' | 'Nagad' | 'Rocket';
   account_number: string;
   amount: number;
   created_at: number;
@@ -66,7 +69,8 @@ let users: User[] = [
     demo_balance: 10000.00,
     wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
     status: "active",
-    role: "user"
+    role: "user",
+    risk_acknowledged: false
   },
   {
     id: "admin_01",
@@ -77,7 +81,8 @@ let users: User[] = [
     demo_balance: 100000.00,
     wallet_address: "0x0000000000000000000000000000000000000000",
     status: "active",
-    role: "admin"
+    role: "admin",
+    risk_acknowledged: true
   }
 ];
 
@@ -128,6 +133,18 @@ let withdrawals: Withdrawal[] = [
   }
 ];
 
+// Admin-managed gateway numbers & transfer instructions
+let gatewaySettings: any = {
+  Bkash: { number: "01711982345", type: "Cash Out" },
+  Nagad: { number: "01812443890", type: "Cash Out" },
+  Rocket: { number: "01912443891", type: "Send Money" },
+  Crypto: [
+    { network: "USDT (TRC20)", address: "TXYZ...example" },
+    { network: "USDT (BEP20)", address: "0xABC...example" },
+    { network: "LTC", address: "L...example" }
+  ]
+};
+
 // Live Market Prices Generator
 const livePrices: Record<string, number> = {
   "EUR/USD": 1.0850,
@@ -144,16 +161,18 @@ const livePrices: Record<string, number> = {
   "NVDA": 132.40
 };
 
-// Simulate micro market movements
+
+// Simulate micro market movements for all assets
 setInterval(() => {
   for (const asset in livePrices) {
-    const changePercent = (Math.random() - 0.495) * 0.0015;
+    const changePercent = (Math.random() - 0.495) * 0.002;
     const decimals = asset.includes("USD") && !asset.includes("BTC") && !asset.includes("ETH") && !asset.includes("GOLD") ? 4 : 2;
-    livePrices[asset] = Number((livePrices[asset] * (1 + changePercent)).toFixed(decimals));
+    const newPrice = Number((livePrices[asset] * (1 + changePercent)).toFixed(decimals));
+    livePrices[asset] = newPrice > 0 ? newPrice : livePrices[asset];
   }
-}, 1000);
+}, 500);
 
-let currentUserId = "usr_101";
+let currentUserId: string | null = null;
 
 async function startServer() {
   const app = express();
@@ -201,9 +220,23 @@ async function startServer() {
 
   // === USER ENDPOINTS ===
   app.get("/api/user/me", (req, res) => {
+    if (!currentUserId) return res.status(401).json({ error: "Not logged in" });
     const user = users.find(u => u.id === currentUserId);
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
+  });
+
+  app.post("/api/login", (req, res) => {
+    const { email, password } = req.body;
+    const user = users.find(u => u.email === email);
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    currentUserId = user.id;
+    res.json({ success: true, user });
+  });
+
+  app.post("/api/logout", (req, res) => {
+    currentUserId = null;
+    res.json({ success: true });
   });
 
   app.post("/api/user/switch", (req, res) => {
@@ -226,14 +259,29 @@ async function startServer() {
     const user = users.find(u => u.id === currentUserId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const { name, wallet_address, phone, language, notification_trades } = req.body;
+    const { 
+      name, 
+      wallet_address, 
+      phone, 
+      language, 
+      notification_trades,
+    } = req.body;
 
     if (name !== undefined) user.name = String(name).trim();
     if (wallet_address !== undefined) user.wallet_address = String(wallet_address).trim();
     if (phone !== undefined) (user as any).phone = String(phone).trim();
     if (language !== undefined) (user as any).language = String(language).trim();
     if (notification_trades !== undefined) (user as any).notification_trades = Boolean(notification_trades);
+    
 
+    res.json({ success: true, user });
+  });
+
+  app.post("/api/user/acknowledge-risk", (req, res) => {
+    const user = users.find(u => u.id === currentUserId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    user.risk_acknowledged = true;
     res.json({ success: true, user });
   });
 
@@ -244,6 +292,63 @@ async function startServer() {
   // === MARKET ENDPOINTS ===
   app.get("/api/market/prices", (req, res) => {
     res.json(livePrices);
+  });
+
+  app.get('/api/klines/:symbol', async (req, res) => {
+    const rawSymbol = decodeURIComponent(req.params.symbol).toUpperCase();
+    const binanceSymbol = rawSymbol.includes('/') 
+      ? rawSymbol.replace('/', '') 
+      : (rawSymbol.endsWith('USDT') ? rawSymbol : rawSymbol + 'USDT');
+
+    const basePrice = livePrices[rawSymbol] || 100;
+    const isCrypto = rawSymbol.includes('BTC') || rawSymbol.includes('ETH') || rawSymbol.includes('SOL');
+    const decimals = rawSymbol.includes("USD") && !isCrypto && !rawSymbol.includes("GOLD") ? 4 : 2;
+
+    const generateRealisticKlines = (count = 100, intervalSec = 60) => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const roundedNowSec = nowSec - (nowSec % intervalSec);
+      const klines: Array<{ time: number; open: number; high: number; low: number; close: number }> = [];
+      let currentPrice = basePrice * 0.98;
+
+      for (let i = count - 1; i >= 0; i--) {
+        const time = roundedNowSec - i * intervalSec;
+        const open = currentPrice;
+        const volatility = basePrice * 0.003;
+        const delta = (Math.random() - 0.49) * volatility * 2;
+        const close = Number((open + delta).toFixed(decimals));
+        const high = Number((Math.max(open, close) + Math.random() * volatility).toFixed(decimals));
+        const low = Number((Math.min(open, close) - Math.random() * volatility).toFixed(decimals));
+        
+        klines.push({ time, open: Number(open.toFixed(decimals)), high, low, close });
+        currentPrice = close;
+      }
+      return klines;
+    };
+
+    try {
+      if (isCrypto) {
+        const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1m&limit=100`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const formattedData = data.map((item: any) => ({
+              time: Math.floor(item[0] / 1000),
+              open: parseFloat(item[1]),
+              high: parseFloat(item[2]),
+              low: parseFloat(item[3]),
+              close: parseFloat(item[4]),
+            }));
+            return res.json({ success: true, data: formattedData });
+          }
+        }
+      }
+      
+      const mockData = generateRealisticKlines(100, 60);
+      res.json({ success: true, data: mockData });
+    } catch (error: any) {
+      const mockData = generateRealisticKlines(100, 60);
+      res.json({ success: true, data: mockData });
+    }
   });
 
   // === TRADING ENDPOINTS ===
@@ -313,6 +418,7 @@ async function startServer() {
     });
   });
 
+
   // === REFERRAL ENDPOINTS ===
   const referralEarnings: Record<string, number> = { "usr_101": 40.40, "admin_01": 0.00 };
   const referralCount: Record<string, number> = { "usr_101": 3, "admin_01": 0 };
@@ -345,6 +451,11 @@ async function startServer() {
     referralEarnings[user.id] = 0;
 
     res.json({ success: true, claimed_amount: earnings, new_balance: user.displayed_balance });
+  });
+
+  // === GATEWAY SETTINGS ===
+  app.get("/api/gateway-settings", (req, res) => {
+    res.json(gatewaySettings);
   });
 
   // === DEPOSIT ENDPOINTS ===
@@ -421,6 +532,15 @@ async function startServer() {
   // === ADMIN CONTROL ENDPOINTS ===
   app.get("/api/admin/users", (req, res) => {
     res.json(users);
+  });
+
+  app.put("/api/admin/gateway-settings", (req, res) => {
+    const { Bkash, Nagad, Rocket, Crypto } = req.body;
+    if (Bkash) gatewaySettings.Bkash = Bkash;
+    if (Nagad) gatewaySettings.Nagad = Nagad;
+    if (Rocket) gatewaySettings.Rocket = Rocket;
+    if (Crypto) gatewaySettings.Crypto = Crypto;
+    res.json({ success: true, gatewaySettings });
   });
 
   app.put("/api/admin/user/:id/balance", (req, res) => {

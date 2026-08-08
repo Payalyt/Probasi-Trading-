@@ -1,19 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { User, Withdrawal } from '../types';
-import { ArrowUpRight, ShieldAlert, AlertOctagon, CheckCircle2, Clock, Lock, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowUpRight, 
+  CheckCircle2, 
+  Clock, 
+  Check,
+  AlertCircle
+} from 'lucide-react';
 
 interface WithdrawalPageProps {
   user: User;
   onWithdrawalSubmitted: () => void;
 }
 
+interface GatewayInfo {
+  number: string;
+  type: string;
+}
+
+interface CryptoNetwork {
+  network: string;
+  address: string;
+}
+
+interface GatewaySettings {
+  Bkash: GatewayInfo;
+  Nagad: GatewayInfo;
+  Rocket: GatewayInfo;
+  Crypto: CryptoNetwork[];
+}
+
 export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdrawalSubmitted }) => {
-  const [method, setMethod] = useState<'Bkash' | 'Nagad' | 'Crypto' | 'Bank Transfer'>('Bkash');
+  const [method, setMethod] = useState<'Bkash' | 'Nagad' | 'Rocket' | 'Crypto'>('Bkash');
+  const [selectedNetworkIdx, setSelectedNetworkIdx] = useState<number>(0);
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [amount, setAmount] = useState<number>(50);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+
+  const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>({
+    Bkash: { number: '01711982345', type: 'Cash Out' },
+    Nagad: { number: '01812443890', type: 'Cash Out' },
+    Rocket: { number: '01912443891', type: 'Send Money' },
+    Crypto: []
+  });
 
   const fetchWithdrawals = async () => {
     try {
@@ -22,23 +53,32 @@ export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdraw
         setWithdrawals(await res.json());
       }
     } catch (err) {
-      // quiet
+      // quiet fallback
     }
   };
 
   useEffect(() => {
     fetchWithdrawals();
+
+    fetch('/api/gateway-settings')
+      .then(res => {
+        if (res.ok) return res.json();
+      })
+      .then(data => {
+        if (data) setGatewaySettings(data);
+      })
+      .catch(err => console.error('Error loading settings', err));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountNumber.trim()) {
-      setMessage({ type: 'error', text: 'Account or wallet number is required' });
+      setMessage({ type: 'error', text: 'Account or wallet destination is required' });
       return;
     }
 
     if (amount > user.displayed_balance) {
-      setMessage({ type: 'error', text: 'Insufficient real account balance' });
+      setMessage({ type: 'error', text: 'Insufficient available account balance' });
       return;
     }
 
@@ -60,106 +100,205 @@ export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdraw
       if (res.ok && data.success) {
         setMessage({
           type: 'success',
-          text: 'Withdrawal request logged. Note: Volume index protocol audit required prior to execution.'
+          text: 'Withdrawal requested successfully.'
         });
         setAccountNumber('');
         fetchWithdrawals();
         onWithdrawalSubmitted();
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to submit withdrawal request' });
+        setMessage({ type: 'error', text: data.error || 'Withdrawal submission failed' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Network connection error' });
+      setMessage({ type: 'error', text: 'Gateway communication error' });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleMaxBalance = () => {
+    setAmount(Math.floor(user.displayed_balance));
+  };
+
+  const selectedGateway = gatewaySettings[method];
+
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-8 font-sans">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 font-sans select-none text-slate-100">
       
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
-        <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <ArrowUpRight className="w-6 h-6 text-emerald-500" />
-            Cash Out & Withdrawal Terminal
+      {/* Mini Minimalist Header Block */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2.5">
+            <ArrowUpRight className="w-6 h-6 text-amber-400" />
+            Withdrawal
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-            Request real balance disbursements directly to your mobile money wallet or crypto account.
+          <p className="text-slate-400 text-xs">
+            Initiate settlements instantly.
           </p>
         </div>
-        <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Available Real Balance</div>
-          <div className="text-xl font-black text-emerald-500 font-mono">${user.displayed_balance.toFixed(2)}</div>
+
+        <div className="bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl flex items-center gap-4">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Available</span>
+          <span className="text-2xl font-bold text-emerald-400 font-mono">
+            ${user.displayed_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Terminal Form */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-sm transition-colors">
+        {/* Main form */}
+        <div className="lg:col-span-8">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-xl">
             
-            {/* System Protocol Flag Notice Box */}
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wider">
-                <AlertOctagon className="w-4 h-4 flex-shrink-0" />
-                <span>System Protocol Flag (Compliance Audit Index)</span>
-              </div>
-              <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed font-sans">
-                Notice: All outbound cash settlements are governed by automated risk index algorithms. To clear automatic verification audits, your trading volume index must maintain compliance across minimum cycle operations. Disbursements remain locked in <strong>AUDIT_REQUIRED</strong> status pending protocol clearing.
-              </p>
+            {/* Gateway Logo Selector */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* bKash */}
+              <button
+                type="button"
+                onClick={() => setMethod('Bkash')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Bkash'
+                    ? 'bg-[#e2125b]/10 border-[#e2125b] text-[#e2125b] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#e2125b] flex items-center justify-center font-black text-white text-xs shadow-md">
+                  bKash
+                </div>
+                <span className="text-xs font-bold text-slate-200">bKash</span>
+                {method === 'Bkash' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#e2125b] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
+
+              {/* Nagad */}
+              <button
+                type="button"
+                onClick={() => setMethod('Nagad')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Nagad'
+                    ? 'bg-[#f57c20]/10 border-[#f57c20] text-[#f57c20] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#f57c20] flex items-center justify-center font-black text-white text-xs shadow-md">
+                  Nagad
+                </div>
+                <span className="text-xs font-bold text-slate-200">Nagad</span>
+                {method === 'Nagad' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#f57c20] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
+
+              {/* Rocket */}
+              <button
+                type="button"
+                onClick={() => setMethod('Rocket')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Rocket'
+                    ? 'bg-[#8c3c96]/10 border-[#8c3c96] text-[#8c3c96] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#8c3c96] flex items-center justify-center font-black text-white text-[10px] shadow-md">
+                  Rocket
+                </div>
+                <span className="text-xs font-bold text-slate-200">Rocket</span>
+                {method === 'Rocket' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#8c3c96] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
+
+              {/* Crypto */}
+              <button
+                type="button"
+                onClick={() => setMethod('Crypto')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Crypto'
+                    ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-black text-white text-[10px] shadow-md">
+                  Crypto
+                </div>
+                <span className="text-xs font-bold text-slate-200">Crypto</span>
+                {method === 'Crypto' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* Method Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Withdrawal Gateway</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {(['Bkash', 'Nagad', 'Crypto', 'Bank Transfer'] as const).map((m) => (
+            {method === 'Crypto' && gatewaySettings.Crypto && gatewaySettings.Crypto.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Select Network
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {gatewaySettings.Crypto.map((net, idx) => (
                     <button
+                      key={idx}
                       type="button"
-                      key={m}
-                      onClick={() => setMethod(m)}
-                      className={`p-3 rounded-xl border text-xs font-bold transition-all ${
-                        method === m
-                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                      onClick={() => setSelectedNetworkIdx(idx)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        selectedNetworkIdx === idx
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      {m}
+                      {net.network}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Account Number & Amount */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    {method} Account / Wallet Number
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Account details */}
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    {method === 'Crypto' ? 'Wallet Address' : `${method} Number`}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g., 01711XXXXXX"
+                    placeholder={method === 'Crypto' ? 'Enter Crypto Address' : 'e.g., 017XXXXXXXX'}
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-xl p-3 text-slate-900 dark:text-white font-mono font-bold outline-none transition-colors text-sm"
+                    className="w-full bg-slate-950/60 border border-slate-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white font-mono font-bold outline-none transition-colors"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Withdrawal Amount ($)</label>
+                {/* Payout amount */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Amount ($)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleMaxBalance}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-extrabold uppercase tracking-wider"
+                    >
+                      Max
+                    </button>
+                  </div>
                   <input
                     type="number"
                     min="10"
                     step="10"
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-xl p-3 text-slate-900 dark:text-white font-mono font-bold outline-none transition-colors text-sm"
+                    className="w-full bg-slate-950/60 border border-slate-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white font-mono font-bold outline-none transition-colors"
                     required
                   />
                 </div>
@@ -167,13 +306,17 @@ export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdraw
 
               {message && (
                 <div
-                  className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-3 ${
+                  className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-3 border ${
                     message.type === 'success'
-                      ? 'bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400'
-                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-500'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                   }`}
                 >
-                  <Lock className="w-4 h-4 flex-shrink-0" />
+                  {message.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                  )}
                   <span>{message.text}</span>
                 </div>
               )}
@@ -181,42 +324,52 @@ export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdraw
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-black py-4 px-6 rounded-xl transition-all shadow-md disabled:opacity-50 uppercase tracking-wider text-xs border border-slate-700"
+                className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-black py-3 px-6 rounded-xl transition-all shadow-lg shadow-amber-500/10 uppercase tracking-wider text-xs"
               >
-                {loading ? 'Initiating Verification...' : 'Request Cash Out Settlement'}
+                {loading ? 'Processing...' : 'Withdraw Cash'}
               </button>
             </form>
+
           </div>
         </div>
 
-        {/* Withdrawal Logs */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm transition-colors">
-            <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-500" />
-              Cash Out Audit History
+        {/* Sidebar history */}
+        <div className="lg:col-span-4">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-3">
+              <Clock className="w-4 h-4 text-amber-400" />
+              History
             </h2>
 
-            <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
               {withdrawals.length === 0 ? (
-                <div className="text-slate-400 text-xs text-center py-8">No prior withdrawal activity</div>
+                <div className="text-slate-500 text-xs text-center py-8">
+                  No records found.
+                </div>
               ) : (
                 withdrawals.map((w) => (
-                  <div key={w.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2 font-mono text-xs">
+                  <div 
+                    key={w.id} 
+                    className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2 font-mono text-xs hover:border-slate-700 transition-colors"
+                  >
                     <div className="flex items-center justify-between font-sans">
-                      <span className="font-bold text-slate-900 dark:text-white">{w.method}</span>
-                      <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">
+                      <span className="font-extrabold text-white text-xs">{w.method}</span>
+                      <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-black text-[9px] uppercase">
                         {w.status.replace('_', ' ')}
                       </span>
                     </div>
 
                     <div className="flex items-baseline justify-between">
-                      <span className="text-lg font-black text-slate-900 dark:text-white">${w.amount.toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-400 font-sans">{new Date(w.created_at).toLocaleTimeString()}</span>
+                      <span className="text-lg font-bold text-white">
+                        ${w.amount.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-sans">
+                        {new Date(w.created_at).toLocaleDateString()}
+                      </span>
                     </div>
 
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">
-                      Account: {w.account_number}
+                    <div className="text-[10px] text-slate-400 truncate bg-slate-900 border border-slate-850 px-2 py-1 rounded">
+                      Number: {w.account_number}
                     </div>
                   </div>
                 ))
@@ -224,6 +377,7 @@ export const WithdrawalPage: React.FC<WithdrawalPageProps> = ({ user, onWithdraw
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

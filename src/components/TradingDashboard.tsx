@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Trade, AssetInfo } from '../types';
 import { TradingViewChart } from './TradingViewChart';
-import { ArrowUpRight, ArrowDownRight, Clock, ShieldCheck, AlertCircle, Trophy, Sparkles, Flame } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Clock, ShieldCheck, AlertCircle, Trophy, Sparkles, Flame, Upload, CheckCircle2, ShieldAlert, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface TradingDashboardProps {
   user: User;
@@ -9,6 +10,7 @@ interface TradingDashboardProps {
   trades: Trade[];
   onTradeOpened: () => void;
   darkMode: boolean;
+  onUserUpdated?: () => void;
 }
 
 const ASSETS: AssetInfo[] = [
@@ -54,7 +56,8 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
   accountType,
   trades,
   onTradeOpened,
-  darkMode
+  darkMode,
+  onUserUpdated
 }) => {
   const [selectedAsset, setSelectedAsset] = useState<AssetInfo>(ASSETS[0]);
   const [investmentAmount, setInvestmentAmount] = useState<number>(10);
@@ -69,6 +72,10 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
     { id: 3, rank: 3, flag: '🇦🇪', name: 'Rana_DXB', profit: 3790.25 }
   ]);
 
+
+  // Risk State
+  const [showRiskModal, setShowRiskModal] = useState<boolean>(false);
+  
   // Leaderboard dynamic simulation
   useEffect(() => {
     const flags = ['🇧🇩', '🇲🇾', '🇦🇪', '🇸🇦', '🇶🇦', '🇴🇲', '🇧🇭'];
@@ -117,9 +124,11 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  const estimatedProfit = (investmentAmount * (selectedAsset.payoutRate / 100)).toFixed(2);
+
+
   const currentPrice = livePrices[selectedAsset.symbol] || selectedAsset.currentPrice;
   const currentBalance = accountType === 'demo' ? user.demo_balance : user.displayed_balance;
-  const estimatedProfit = (investmentAmount * (selectedAsset.payoutRate / 100)).toFixed(2);
 
   const handleOpenTrade = async (tradeType: 'Buy' | 'Sell') => {
     if (investmentAmount <= 0) {
@@ -130,6 +139,14 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
     if (investmentAmount > currentBalance) {
       setErrorMessage('Insufficient wallet balance');
       return;
+    }
+
+    if (accountType === 'live') {
+      if (!user.risk_acknowledged) {
+        setErrorMessage('ট্রেড প্লেস করার আগে অনুগ্রহ করে ঝুঁকি ঘোষণা সতর্কবার্তা স্বীকার করুন।');
+        setShowRiskModal(true);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -152,6 +169,7 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
       const data = await res.json();
       if (res.ok && data.success) {
         onTradeOpened();
+
       } else {
         setErrorMessage(data.error || 'Failed to place trade');
       }
@@ -162,15 +180,49 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
     }
   };
 
+  const handleAcknowledgeRisk = async () => {
+    try {
+      const res = await fetch('/api/user/acknowledge-risk', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        setShowRiskModal(false);
+        if (onUserUpdated) onUserUpdated();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const userTrades = trades.filter(t => t.user_id === user.id && t.account_type === accountType);
   const activeTrades = userTrades.filter(t => t.trade_status === 'Pending');
   const pastTrades = userTrades.filter(t => t.trade_status !== 'Pending');
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row bg-[#0b0e14] p-2 gap-2 overflow-hidden">
+    <div className="h-full w-full flex flex-col lg:flex-row bg-[#0b0e14] p-2 gap-2 overflow-y-auto lg:overflow-hidden">
       
       {/* Left Area (Chart + Assets) */}
-      <div className="flex-1 flex flex-col min-w-0 h-full relative space-y-2">
+      <div className="flex-1 flex flex-col min-w-0 min-h-[700px] lg:min-h-0 lg:h-full relative space-y-2">
+        
+        {/* Risk Acknowledgment Warning Banner */}
+        {accountType === 'live' && !user.risk_acknowledged && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 animate-bounce" />
+              <div className="text-left">
+                <div className="text-xs font-black font-sans">গুরুত্বপূর্ণ ঝুঁকি ঘোষণা (Risk Disclosure Notice)</div>
+                <div className="text-[10px] text-slate-300">রিয়েল ট্রেডিং শুরু করার আগে ঝুঁকি ঘোষণা সতর্কবার্তাটি পড়ে সম্মতি প্রদান করুন।</div>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowRiskModal(true)}
+              className="bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] px-4 py-1.5 rounded-lg uppercase tracking-wider transition-colors flex-shrink-0"
+            >
+              সম্মতি দিন / Read Notice
+            </button>
+          </div>
+        )}
+
         {/* Minimalist Asset Selector Cards */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
           {ASSETS.map((asset) => {
@@ -200,8 +252,22 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
         </div>
 
         {/* Live Chart Area */}
-        <div className="flex-1 min-h-0 w-full rounded-lg overflow-hidden border border-slate-800">
-          <TradingViewChart symbol={selectedAsset.symbol} tvSymbol={selectedAsset.tvSymbol} theme="dark" />
+        <div className="flex-1 min-h-[420px] w-full rounded-lg overflow-hidden border border-slate-800">
+          <TradingViewChart 
+            symbol={selectedAsset.symbol} 
+            tvSymbol={selectedAsset.tvSymbol} 
+            theme="dark" 
+            price={currentPrice}
+            onBuy={() => handleOpenTrade('Buy')}
+            onSell={() => handleOpenTrade('Sell')}
+            isSubmitting={submitting}
+            investmentAmount={investmentAmount}
+            setInvestmentAmount={setInvestmentAmount}
+            balance={currentBalance}
+            accountType={accountType}
+            activeTrades={activeTrades}
+            currentTime={currentTime}
+          />
         </div>
       </div>
 
@@ -369,7 +435,7 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
             ))}
           </div>
         </div>
-        
+
         {/* Trades mini history inside sidebar to save space */}
         <div className="bg-[#0b0e14] border border-slate-800 rounded-lg p-3 flex-1 overflow-y-auto min-h-0 font-sans shadow-lg">
           <div className="text-[10px] font-bold text-white uppercase tracking-wider mb-2">
@@ -397,6 +463,59 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
         </div>
 
       </div>
+
+      {/* --- RISK DISCLOSURE WARNING MODAL --- */}
+      <AnimatePresence>
+        {showRiskModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[#0f141c] border border-slate-800 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl text-slate-100"
+            >
+              <div className="p-5 border-b border-slate-800 flex items-center gap-2.5 bg-slate-900/40">
+                <ShieldAlert className="w-5 h-5 text-amber-500 animate-pulse" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">ঝুঁকি ঘোষণা ও প্ল্যাটফর্ম নীতিমালা</h3>
+              </div>
+              
+              <div className="p-6 space-y-4 max-h-[350px] overflow-y-auto text-xs text-slate-300 leading-relaxed font-sans">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 font-bold mb-3">
+                  সতর্কবার্তা: আর্থিক বাজারে ট্রেড করা অত্যন্ত ঝুঁকিপূর্ণ এবং আপনার মূলধনের আংশিক বা সম্পূর্ণ ক্ষতি হতে পারে।
+                </div>
+                
+                <p>
+                  ১. <strong>রিয়েল মানি এবং স্বচ্ছতা:</strong> ProbashiTrade একটি বিশ্বস্ত প্ল্যাটফর্ম। এখানে কোনো ট্রেড ফলাফল বা উইন-লসের হার প্ল্যাটফর্ম দ্বারা ম্যানিপুলেট বা রিগ করা হয় না। আপনার ট্রেড বাস্তব বাজার মূল্যের গতির ভিত্তিতে স্বয়ংক্রিয়ভাবে নিষ্পত্তি হয়।
+                </p>
+                
+                <p>
+                  ২. <strong>মার্কেট ঝুঁকি:</strong> বৈদেশিক মুদ্রা (Forex), ক্রিপ্টোকারেন্সি এবং স্টক ট্রেডিং-এ দ্রুত পরিবর্তনশীল মূল্যের কারণে যেকোনো সময় বড় ধরনের আর্থিক ক্ষতি হতে পারে। শুধুমাত্র এমন পরিমাণ ফান্ড ব্যবহার করুন যা হারালে আপনার দৈনন্দিন জীবনে প্রভাব ফেলবে না।
+                </p>
+                
+                <p>
+                  ৩. <strong>সহযোগিতা ও লাইসেন্স:</strong> আমরা লাইসেন্সধারী লিকুইডিটি প্রোভাইডার এবং পার্টনার ব্রোকারের মাধ্যমে অর্ডারগুলো নির্বিঘ্নে প্রসেস করি। কোনো ধরনের কৃত্রিম ক্যাশআউট হোল্ড বা রিজেকশন নীতি আমাদের প্ল্যাটফর্মে নেই।
+                </p>
+              </div>
+
+              <div className="p-5 border-t border-slate-800 bg-[#0c1017] flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setShowRiskModal(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-400 hover:text-white uppercase transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAcknowledgeRisk}
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-6 py-2.5 rounded-xl uppercase tracking-wider transition-colors shadow shadow-amber-500/20"
+                >
+                  আমি সম্মত ও ঝুঁকি নিচ্ছি
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

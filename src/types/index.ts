@@ -11,6 +11,7 @@ export interface User {
   phone?: string;
   language?: string;
   notification_trades?: boolean;
+  risk_acknowledged?: boolean;
 }
 
 export type TradeType = 'Buy' | 'Sell';
@@ -36,7 +37,7 @@ export interface Trade {
   profit?: number;
 }
 
-export type DepositMethod = 'Bkash' | 'Nagad' | 'Crypto' | 'Bank Transfer';
+export type DepositMethod = 'Bkash' | 'Nagad' | 'Rocket' | 'Crypto';
 export type DepositStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface Deposit {

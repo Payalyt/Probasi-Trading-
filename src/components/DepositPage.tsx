@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Deposit } from '../types';
-import { CreditCard, CheckCircle2, AlertCircle, Clock, Copy, ShieldCheck, HelpCircle } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  AlertCircle, 
+  Clock, 
+  Copy, 
+  ArrowDownLeft, 
+  Check
+} from 'lucide-react';
 
 interface DepositPageProps {
   user: User;
@@ -8,25 +15,54 @@ interface DepositPageProps {
   onDepositSubmitted: () => void;
 }
 
+interface GatewayInfo {
+  number: string;
+  type: string;
+}
+
+interface CryptoNetwork {
+  network: string;
+  address: string;
+}
+
+interface GatewaySettings {
+  Bkash: GatewayInfo;
+  Nagad: GatewayInfo;
+  Rocket: GatewayInfo;
+  Crypto: CryptoNetwork[];
+}
+
 export const DepositPage: React.FC<DepositPageProps> = ({ user, deposits, onDepositSubmitted }) => {
-  const [method, setMethod] = useState<'Bkash' | 'Nagad' | 'Crypto' | 'Bank Transfer'>('Bkash');
+  const [method, setMethod] = useState<'Bkash' | 'Nagad' | 'Rocket' | 'Crypto'>('Bkash');
+  const [selectedNetworkIdx, setSelectedNetworkIdx] = useState<number>(0);
   const [amount, setAmount] = useState<number>(100);
   const [transactionId, setTransactionId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
-  const walletAccounts = {
-    Bkash: '+880 1711 982 345 (bKash Agent / Cash Out)',
-    Nagad: '+880 1812 443 890 (Nagad Agent / Cash Out)',
-    Crypto: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F (USDT TRC20 / ERC20)',
-    'Bank Transfer': 'City Bank - A/C: 1102938481203 (Routing: 2202711)'
-  };
+  const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>({
+    Bkash: { number: '01711982345', type: 'Cash Out' },
+    Nagad: { number: '01812443890', type: 'Cash Out' },
+    Rocket: { number: '01912443891', type: 'Send Money' },
+    Crypto: []
+  });
 
-  const handleCopy = (text: string, label: string) => {
+  useEffect(() => {
+    fetch('/api/gateway-settings')
+      .then(res => {
+        if (res.ok) return res.json();
+      })
+      .then(data => {
+        if (data) setGatewaySettings(data);
+      })
+      .catch(err => console.error('Error loading settings', err));
+  }, []);
+
+  const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,148 +88,268 @@ export const DepositPage: React.FC<DepositPageProps> = ({ user, deposits, onDepo
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setMessage({ type: 'success', text: 'Deposit request submitted successfully! Awaiting automated Gateway verification.' });
+        setMessage({ 
+          type: 'success', 
+          text: 'Deposit request submitted successfully!' 
+        });
         setTransactionId('');
         onDepositSubmitted();
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to submit deposit' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Network connection error' });
+      setMessage({ type: 'error', text: 'Network connection failure. Please retry.' });
     } finally {
       setLoading(false);
     }
   };
 
+  const quickAmounts = [50, 100, 250, 500, 1000];
+  const selectedGateway = gatewaySettings[method];
+
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-8 font-sans">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 font-sans select-none text-slate-100">
       
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
-        <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-emerald-500" />
-            Probashi Deposit Portal
+      {/* Mini Minimalist Header Block */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2.5">
+            <ArrowDownLeft className="w-6 h-6 text-emerald-400" />
+            Deposit
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-            Instantly top up your Real Trading Account using local mobile money gateways or crypto rails.
+          <p className="text-slate-400 text-xs">
+            Fund your real wallet instantly.
           </p>
         </div>
-        <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Real Account Wallet</div>
-          <div className="text-xl font-black text-emerald-500 font-mono">${user.displayed_balance.toFixed(2)}</div>
+
+        <div className="bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl flex items-center gap-4">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Balance</span>
+          <span className="text-2xl font-bold text-emerald-400 font-mono">
+            ${user.displayed_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Deposit Checkout Form */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-sm transition-colors">
+        {/* Main form */}
+        <div className="lg:col-span-8">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-xl">
             
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3">
-              1. Select Payment Method
-            </h2>
+            {/* Gateway Logo Selector */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* bKash */}
+              <button
+                type="button"
+                onClick={() => setMethod('Bkash')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Bkash'
+                    ? 'bg-[#e2125b]/10 border-[#e2125b] text-[#e2125b] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#e2125b] flex items-center justify-center font-black text-white text-xs shadow-md">
+                  bKash
+                </div>
+                <span className="text-xs font-bold text-slate-200">bKash</span>
+                {method === 'Bkash' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#e2125b] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
 
-            {/* Gateway Selection Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {(['Bkash', 'Nagad', 'Crypto', 'Bank Transfer'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMethod(m)}
-                  className={`p-4 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-2 ${
-                    method === m
-                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
-                >
-                  {m === 'Bkash' && <span className="text-pink-600 font-black text-base">bKash</span>}
-                  {m === 'Nagad' && <span className="text-orange-500 font-black text-base">Nagad</span>}
-                  {m === 'Crypto' && <span className="text-emerald-500 font-black text-base">USDT</span>}
-                  {m === 'Bank Transfer' && <span className="text-blue-500 font-black text-base">Bank</span>}
-                  <span>{m}</span>
-                </button>
-              ))}
+              {/* Nagad */}
+              <button
+                type="button"
+                onClick={() => setMethod('Nagad')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Nagad'
+                    ? 'bg-[#f57c20]/10 border-[#f57c20] text-[#f57c20] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#f57c20] flex items-center justify-center font-black text-white text-xs shadow-md">
+                  Nagad
+                </div>
+                <span className="text-xs font-bold text-slate-200">Nagad</span>
+                {method === 'Nagad' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#f57c20] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
+
+              {/* Rocket */}
+              <button
+                type="button"
+                onClick={() => setMethod('Rocket')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Rocket'
+                    ? 'bg-[#8c3c96]/10 border-[#8c3c96] text-[#8c3c96] shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#8c3c96] flex items-center justify-center font-black text-white text-[10px] shadow-md">
+                  Rocket
+                </div>
+                <span className="text-xs font-bold text-slate-200">Rocket</span>
+                {method === 'Rocket' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-[#8c3c96] flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
+
+              {/* Crypto */}
+              <button
+                type="button"
+                onClick={() => setMethod('Crypto')}
+                className={`relative p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 h-24 ${
+                  method === 'Crypto'
+                    ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-lg'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-black text-white text-[10px] shadow-md">
+                  Crypto
+                </div>
+                <span className="text-xs font-bold text-slate-200">Crypto</span>
+                {method === 'Crypto' && (
+                  <span className="absolute top-2 right-2 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                    <Check className="w-2 h-2" />
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Instruction Card */}
-            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 space-y-3 relative">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  Official {method} Merchant / Cashout Routing Address
+            {method === 'Crypto' && gatewaySettings.Crypto && gatewaySettings.Crypto.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Select Network
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {gatewaySettings.Crypto.map((net, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedNetworkIdx(idx)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        selectedNetworkIdx === idx
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      {net.network}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Revealed Credentials Box */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 overflow-hidden">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                  {method === 'Crypto' 
+                    ? `Deposit Address (${gatewaySettings.Crypto?.[selectedNetworkIdx]?.network || 'N/A'})` 
+                    : `${method} Number (${selectedGateway?.type})`}
                 </span>
-                <button
-                  onClick={() => handleCopy(walletAccounts[method], method)}
-                  className="text-[11px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1 rounded-lg transition-colors font-bold"
-                >
-                  {copied === method ? 'Copied!' : 'Copy Address'}
-                </button>
+                <span className="text-lg md:text-xl font-mono font-black text-white tracking-wide block truncate">
+                  {method === 'Crypto' 
+                    ? gatewaySettings.Crypto?.[selectedNetworkIdx]?.address 
+                    : selectedGateway?.number}
+                </span>
               </div>
 
-              <div className="text-sm font-mono font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 break-all select-all shadow-inner">
-                {walletAccounts[method]}
-              </div>
-
-              <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
-                <p className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <HelpCircle className="w-3.5 h-3.5 text-emerald-500" />
-                  Cash Out Instructions:
-                </p>
-                <p>
-                  1. Open your {method} App or dial USSD menu and choose <strong>Cash Out</strong> (or Send Money).
-                </p>
-                <p>
-                  2. Transfer the exact amount to the Merchant Number listed above.
-                </p>
-                <p>
-                  3. Copy the received <strong>TrxID / Transaction Hash</strong> and paste it into the field below.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(
+                  method === 'Crypto' 
+                    ? (gatewaySettings.Crypto?.[selectedNetworkIdx]?.address || '') 
+                    : (selectedGateway?.number || '')
+                )}
+                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 px-4 py-2.5 rounded-xl transition-all font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </>
+                )}
+              </button>
             </div>
 
-            {/* Submit TrxID Form */}
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3">
-                2. Enter Transaction Hash & Amount
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Deposit Amount ($)</label>
-                  <input
-                    type="number"
-                    min="10"
-                    step="5"
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-xl p-3 text-slate-900 dark:text-white font-mono font-bold outline-none transition-colors"
-                    required
-                  />
+            {/* Deposit Form Input Fields */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Amount field */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Amount ($)
+                </label>
+                
+                <div className="flex flex-wrap gap-2">
+                  {quickAmounts.map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setAmount(val)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold font-mono transition-all border ${
+                        amount === val
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-500 font-black'
+                          : 'bg-slate-950/40 hover:bg-slate-950 border-slate-800 text-slate-300'
+                      }`}
+                    >
+                      ${val}
+                    </button>
+                  ))}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Transaction ID (TrxID)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., BK8X92M10Q or Hash"
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-xl p-3 text-slate-900 dark:text-white font-mono font-bold outline-none transition-colors"
-                    required
-                  />
-                </div>
+                <input
+                  type="number"
+                  min="10"
+                  step="5"
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  className="w-full bg-slate-950/60 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-3 text-white font-mono font-bold outline-none transition-colors"
+                  required
+                />
+              </div>
+
+              {/* Transaction ID field */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Transaction ID / TrxID
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter Transaction number"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-3 text-white font-mono font-bold outline-none transition-colors"
+                  required
+                />
               </div>
 
               {message && (
                 <div
-                  className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-3 ${
+                  className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-3 border ${
                     message.type === 'success'
-                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-500'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                   }`}
                 >
-                  {message.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+                  {message.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                  )}
                   <span>{message.text}</span>
                 </div>
               )}
@@ -201,37 +357,43 @@ export const DepositPage: React.FC<DepositPageProps> = ({ user, deposits, onDepo
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 px-6 rounded-xl transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 uppercase tracking-wider text-xs"
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-black py-3 px-6 rounded-xl transition-all shadow-lg shadow-emerald-500/10 uppercase tracking-wider text-xs"
               >
-                {loading ? 'Processing...' : 'Submit Deposit Notification'}
+                {loading ? 'Submitting...' : 'Submit Deposit'}
               </button>
             </form>
+
           </div>
         </div>
 
-        {/* Deposit History Sidebar */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm transition-colors">
-            <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-500" />
-              Deposit Log
+        {/* Sidebar history */}
+        <div className="lg:col-span-4">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-3">
+              <Clock className="w-4 h-4 text-emerald-400" />
+              History
             </h2>
 
-            <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
               {deposits.length === 0 ? (
-                <div className="text-slate-400 text-xs text-center py-8">No prior deposit records</div>
+                <div className="text-slate-500 text-xs text-center py-8">
+                  No records found.
+                </div>
               ) : (
                 deposits.map((dep) => (
-                  <div key={dep.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3.5 space-y-2 font-mono text-xs">
+                  <div 
+                    key={dep.id} 
+                    className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2 font-mono text-xs hover:border-slate-700 transition-colors"
+                  >
                     <div className="flex items-center justify-between font-sans">
-                      <span className="font-bold text-slate-900 dark:text-white">{dep.method}</span>
+                      <span className="font-extrabold text-white text-xs">{dep.method}</span>
                       <span
-                        className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                           dep.status === 'Approved'
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : dep.status === 'Rejected'
-                            ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         }`}
                       >
                         {dep.status}
@@ -239,12 +401,16 @@ export const DepositPage: React.FC<DepositPageProps> = ({ user, deposits, onDepo
                     </div>
 
                     <div className="flex items-baseline justify-between">
-                      <span className="text-lg font-black text-slate-900 dark:text-white">${dep.amount.toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-400 font-sans">{new Date(dep.created_at).toLocaleTimeString()}</span>
+                      <span className="text-lg font-bold text-white">
+                        ${dep.amount.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-sans">
+                        {new Date(dep.created_at).toLocaleDateString()}
+                      </span>
                     </div>
 
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">
-                      TrxID: {dep.transaction_id}
+                    <div className="text-[10px] text-slate-400 truncate bg-slate-900 border border-slate-850 px-2 py-1 rounded">
+                      ID: {dep.transaction_id}
                     </div>
                   </div>
                 ))
@@ -252,6 +418,7 @@ export const DepositPage: React.FC<DepositPageProps> = ({ user, deposits, onDepo
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

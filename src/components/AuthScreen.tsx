@@ -7,38 +7,59 @@ interface AuthScreenProps {
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
-  
-  const handleSubmit = (e: React.FormEvent) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setError('');
+    
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        onLogin();
+      } else {
+        setError(data.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0e14] flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white dark:bg-[#06090e] p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 transition-all">
+    <div className="min-h-screen bg-[#060709] flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md bg-[#0c0d10] p-8 rounded-3xl shadow-2xl border border-[#1f2532] transition-all">
         
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="bg-emerald-500 p-2.5 rounded-xl">
+        <div className="flex items-center gap-3 justify-center mb-6">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/10">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3v18h18" />
               <path d="m19 9-5 5-4-4-3 3" />
             </svg>
           </div>
-          <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-sans">
-            Probashi <span className="text-emerald-500">Trading</span>
+          <span className="text-2xl font-black text-white tracking-tight font-sans">
+            PROBASHI <span className="text-blue-500">TRADING</span>
           </span>
         </div>
 
-        <h2 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-2 font-sans tracking-tight">
+        <h2 className="text-2xl font-bold text-center text-white mb-1 font-sans tracking-tight">
           {isSignUp ? 'Create Elite Account' : 'Welcome Back'}
         </h2>
-        <p className="text-center text-slate-500 dark:text-slate-400 text-sm mb-8 font-sans">
-          Secure, institutional-grade market access
+        <p className="text-center text-xs text-slate-500 uppercase tracking-widest font-sans font-bold mb-8">
+          Secure Institutional-Grade Terminal
         </p>
 
         <button 
-          onClick={onLogin}
-          className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-3.5 px-4 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors mb-6 shadow-sm"
+          onClick={() => { setEmail('trader@probashi.com'); setPassword('password'); }}
+          className="w-full flex items-center justify-center gap-3 bg-[#171a22] hover:bg-[#222733] border border-[#2d3748] text-[#e2e8f0] py-3.5 px-4 rounded-xl font-semibold transition-all mb-6 shadow-md hover:-translate-y-[1px]"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -50,55 +71,61 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </button>
 
         <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
-          <span className="text-xs text-slate-400 font-mono uppercase tracking-wider">Or continue with</span>
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
+          <div className="flex-1 h-px bg-[#1f2532]"></div>
+          <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider font-bold">Or continue with</span>
+          <div className="flex-1 h-px bg-[#1f2532]"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-slate-400" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-slate-500" />
               </div>
               <input 
-                type="email" 
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                className="w-full pl-11 pr-4 py-3.5 bg-[#171a22] border border-[#1f2532] rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all font-medium text-sm"
                 placeholder="Email address"
               />
             </div>
           </div>
           <div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-slate-500" />
               </div>
               <input 
-                type="password" 
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                className="w-full pl-11 pr-4 py-3.5 bg-[#171a22] border border-[#1f2532] rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all font-medium text-sm"
                 placeholder="Password"
               />
             </div>
           </div>
           
+          {error && <p className="text-red-500 text-xs text-center mt-2">{error}</p>}
+
           <button 
             type="submit"
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-2"
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:opacity-95 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 mt-2 uppercase text-xs tracking-wider"
           >
             {isSignUp ? 'Create Account' : 'Sign In'}
             <ArrowRight className="w-5 h-5" />
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-center text-sm text-slate-500 dark:text-slate-400 font-sans">
+        <div className="mt-8 pt-6 border-t border-[#1f2532]">
+          <p className="text-center text-sm text-slate-400 font-sans">
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}
             {' '}
             <button 
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-emerald-500 font-semibold hover:text-emerald-400 transition-colors"
+              className="text-blue-400 font-semibold hover:text-blue-300 transition-colors"
             >
               {isSignUp ? 'Sign in' : 'Sign up'}
             </button>
@@ -106,8 +133,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </div>
       </div>
       
-      <div className="mt-8 flex items-center gap-2 text-slate-400 dark:text-slate-500 text-xs font-mono">
-        <ShieldCheck className="w-4 h-4" />
+      <div className="mt-8 flex items-center gap-2 text-slate-500 text-xs font-mono">
+        <ShieldCheck className="w-4 h-4 text-emerald-500" />
         <span>End-to-End Encrypted Financial Gateway</span>
       </div>
     </div>

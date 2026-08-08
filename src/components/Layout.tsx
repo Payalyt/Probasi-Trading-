@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { Sun, Moon, Wallet, Menu, X, ArrowUpRight, TrendingUp, ChevronDown, Trophy, History, ShieldAlert, ArrowDownLeft, CheckCircle2, Lock, Sparkles, UserCheck, Bell, Copy, ChevronRight, Gift, Download, Settings, Plus, CreditCard, ArrowRightLeft, User as UserIcon } from 'lucide-react';
+import { LogOut, MessageCircle, Sun, Moon, Wallet, Menu, X, ArrowUpRight, TrendingUp, ChevronDown, Trophy, History, ShieldAlert, ArrowDownLeft, CheckCircle2, Lock, Sparkles, UserCheck, Bell, Copy, ChevronRight, Gift, Download, Settings, Plus, CreditCard, ArrowRightLeft, User as UserIcon } from 'lucide-react';
 
 interface SidebarProps {
   user: User;
   accountType: 'live' | 'demo';
   setAccountType: (type: 'live' | 'demo') => void;
-  activeView: 'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'boost' | 'refer';
-  setActiveView: (view: 'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'boost' | 'refer') => void;
+  activeView: 'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'refer';
+  setActiveView: (view: 'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'refer') => void;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   allUsers: User[];
@@ -45,50 +45,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [paymentsDrawerOpen, setPaymentsDrawerOpen] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
-  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'completed'>('idle');
-  const [downloadTab, setDownloadTab] = useState<'pwa' | 'apk'>('pwa');
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-      setIsInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const triggerPWAInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-      }
-      setDeferredPrompt(null);
-    } else {
-      // Direct Chrome/Safari instruction popup or standard fallback
-      alert("১ম পদ্ধতিতে ইনস্টল করতে:\nঅ্যান্ড্রয়েড হলে: ব্রাউজারের উপরে ডানদিকের ৩টি ডট (⋮) এ চাপুন, তারপর 'Install app' বা 'Add to Home Screen' এ চাপুন।\nআইফোন হলে: নিচে শেয়ার (Share) বাটনে চেপে 'Add to Home Screen' এ চাপুন।");
-    }
-  };
 
   const displayBalance = accountType === 'demo' ? user.demo_balance : user.displayed_balance;
 
@@ -96,44 +52,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigator.clipboard.writeText('137940571');
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
-  };
-
-  const handleDownloadApp = () => {
-    setDownloadModalOpen(true);
-    setDownloadState('downloading');
-    setDownloadProgress(0);
-
-    let current = 0;
-    const interval = setInterval(() => {
-      current += Math.floor(Math.random() * 12) + 6;
-      if (current >= 100) {
-        current = 100;
-        setDownloadProgress(100);
-        setDownloadState('completed');
-        clearInterval(interval);
-
-        // Instantly trigger actual download
-        try {
-          const content = new Uint8Array([
-            0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x08, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ...new Array(80000).fill(0).map(() => Math.floor(Math.random() * 256))
-          ]);
-          const blob = new Blob([content], { type: 'application/vnd.android.package-archive' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'ProbashiOptionPro.apk';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        setDownloadProgress(current);
-      }
-    }, 100);
   };
 
   return (
@@ -180,22 +98,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => setActiveView('refer')} 
             />
             <SidebarIcon 
-              icon={<Sparkles className="w-5 h-5" />} 
-              label="Boost"
-              active={activeView === 'boost'} 
-              onClick={() => setActiveView('boost')} 
-            />
-            <SidebarIcon 
               icon={<Settings className="w-5 h-5" />} 
               label="Settings"
               active={activeView === 'settings'} 
               onClick={() => setActiveView('settings')} 
             />
             <SidebarIcon 
-              icon={<Download className="w-5 h-5 text-emerald-400 animate-pulse" />} 
-              label="Download"
+              icon={<MessageCircle className="w-5 h-5" />} 
+              label="Support"
               active={false} 
-              onClick={handleDownloadApp} 
+              onClick={() => window.open("https://wa.me/", "_blank")} 
+            />
+            <SidebarIcon 
+              icon={<LogOut className="w-5 h-5 text-red-400" />} 
+              label="Logout"
+              active={false} 
+              onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())} 
             />
           </div>
         </div>
@@ -368,21 +286,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 <button
                   onClick={() => {
-                    setActiveView('boost');
-                    setLeftDrawerOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 ${
-                    activeView === 'boost'
-                      ? 'bg-emerald-500 text-slate-950 font-extrabold'
-                      : 'text-slate-300 hover:bg-slate-900'
-                  }`}
-                >
-                  <Sparkles className="w-5 h-5" />
-                  <span>Boost</span>
-                </button>
-
-                <button
-                  onClick={() => {
                     setActiveView('settings');
                     setLeftDrawerOpen(false);
                   }}
@@ -395,19 +298,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Settings className="w-5 h-5" />
                   <span>Settings</span>
                 </button>
-
+                <div className="h-px bg-slate-800 my-2"></div>
                 <button
-                  onClick={() => {
-                    handleDownloadApp();
-                    setLeftDrawerOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center justify-between text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 group border border-dashed border-emerald-500/20 bg-emerald-500/5 mt-2"
+                  onClick={() => window.open("https://wa.me/", "_blank")}
+                  className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-emerald-400 hover:bg-slate-900 font-bold"
                 >
-                  <div className="flex items-center gap-3">
-                    <Download className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300 animate-bounce" />
-                    <span className="font-extrabold">Download App</span>
-                  </div>
-                  <span className="bg-emerald-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded uppercase">APK</span>
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Support (WhatsApp)</span>
+                </button>
+                <button
+                  onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())}
+                  className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-red-400 hover:bg-slate-900 font-bold"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
                 </button>
               </nav>
             </div>
@@ -684,20 +588,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl divide-y divide-slate-800">
                 <button 
                   onClick={() => {
-                    handleDownloadApp();
-                    setProfileDrawerOpen(false);
-                  }}
-                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-white hover:bg-slate-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Download className="w-5 h-5 text-slate-400" />
-                    <span>Download App</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </button>
-
-                <button 
-                  onClick={() => {
                     setActiveView('settings');
                     setProfileDrawerOpen(false);
                   }}
@@ -709,247 +599,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 5. DOWNLOAD APP MODAL */}
-      {downloadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm"
-            onClick={() => setDownloadModalOpen(false)}
-          />
-          <div className="relative bg-[#0b0e14] border border-slate-800 rounded-3xl p-6 md:p-8 max-w-lg w-full text-white space-y-5 shadow-2xl z-50 overflow-y-auto max-h-[95vh] font-sans">
-            
-            {/* Close Button */}
-            <button
-              onClick={() => setDownloadModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border border-slate-800"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Header */}
-            <div className="text-center space-y-2">
-              <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400">
-                <Download className="w-8 h-8" />
-              </div>
-              <h2 className="text-2xl font-black font-heading">Mobile App Installation</h2>
-              <p className="text-xs text-slate-400">
-                Install Probashi Option Pro directly to your mobile phone.
-                <br />
-                <span className="text-emerald-400 font-bold">নিচের যেকোনো একটি উপায়ে অ্যাপটি ইনস্টল করুন:</span>
-              </p>
-            </div>
-
-            {/* Tabs for Two Installation Methods */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/60">
-              <button
-                onClick={() => setDownloadTab('pwa')}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-black transition-all ${
-                  downloadTab === 'pwa'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                ১ম পদ্ধতি: Instant App (১০০% কাজ করবে)
-              </button>
-              <button
-                onClick={() => setDownloadTab('apk')}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-black transition-all ${
-                  downloadTab === 'apk'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                ২য় পদ্ধতি: APK Download
-              </button>
-            </div>
-
-            {/* METHOD 1: PWA TAB */}
-            {downloadTab === 'pwa' && (
-              <div className="space-y-4">
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-xs space-y-1.5 text-center">
-                  <p className="font-bold text-emerald-400 text-sm">💡 এটি সবচেয়ে সহজ এবং নিরাপদ পদ্ধতি</p>
-                  <p className="text-slate-300 leading-relaxed">এর জন্য কোনো ফাইল ডাউনলোড বা সিকিউরিটি পারমিশন লাগবে না। অ্যাপটি সরাসরি আপনার ফোনে ইনস্টল হয়ে যাবে এবং কোনো "Parsing Error" হবে না।</p>
-                </div>
-
-                {/* One-click install action */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 text-center">
-                  <p className="text-xs font-semibold text-slate-300">
-                    সরাসরি ১-ক্লিকে ফোনে ইনস্টল করতে নিচের বাটনে চাপুন:
-                  </p>
-                  <button
-                    onClick={triggerPWAInstall}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-sm uppercase tracking-wider text-center transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="w-5 h-5" />
-                    <span>Install App Now (এখনই ইনস্টল করুন)</span>
-                  </button>
-                  <p className="text-[10px] text-slate-500">
-                    *বাটনটি কাজ না করলে নিচের ক্রোম (Chrome) বা সাফারি (Safari) ব্রাউজারের নিয়মটি অনুসরণ করুন।
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <span>How to Install (ইনস্টল করার নিয়ম)</span>
-                    <span className="h-px bg-slate-800 flex-1" />
-                  </h3>
-
-                  <div className="space-y-3 text-xs">
-                    {/* Step 1 */}
-                    <div className="flex gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800/60">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex-shrink-0 flex items-center justify-center font-black text-emerald-400 text-xs">১</div>
-                      <div>
-                        <h4 className="font-extrabold text-white mb-0.5">
-                          Chrome browser (Android) <span className="text-slate-400 font-normal">/ অ্যান্ড্রোয়েড ফোনে</span>
-                        </h4>
-                        <p className="text-slate-400 leading-relaxed">
-                          Click browser's <strong className="text-white">Three Dots (⋮)</strong> icon at the top right, then select <strong className="text-emerald-400">"Install app"</strong> or <strong className="text-emerald-400">"Add to Home Screen"</strong>.
-                          <br />
-                          <span className="text-emerald-400/80">ক্রোম ব্রাউজারের উপরে ডানদিকে থাকা <strong className="text-white">৩টি ডট (⋮)</strong> মেনুতে ক্লিক করুন, তারপর <strong className="text-emerald-400">"Install app"</strong> অথবা <strong className="text-emerald-400">"Add to Home Screen"</strong> অপশনে চাপুন।</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="flex gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800/60">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex-shrink-0 flex items-center justify-center font-black text-emerald-400 text-xs">২</div>
-                      <div>
-                        <h4 className="font-extrabold text-white mb-0.5">
-                          Safari browser (iPhone/iOS) <span className="text-slate-400 font-normal">/ আইফোনের জন্য</span>
-                        </h4>
-                        <p className="text-slate-400 leading-relaxed">
-                          Tap the <strong className="text-white">"Share" button</strong> at the bottom of Safari, scroll down and select <strong className="text-emerald-400">"Add to Home Screen"</strong>.
-                          <br />
-                          <span className="text-emerald-400/80">সাফারি ব্রাউজারের নিচের দিকে থাকা <strong className="text-white">"Share" (শেয়ার)</strong> বাটনে চাপুন, নিচে স্ক্রোল করে <strong className="text-emerald-400">"Add to Home Screen"</strong> অপশনটি সিলেক্ট করুন।</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* METHOD 2: APK TAB */}
-            {downloadTab === 'apk' && (
-              <div className="space-y-4">
-                {/* Simulated Live Download Bar */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400 flex items-center gap-1.5 font-semibold">
-                      {downloadState === 'completed' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <span className="w-3 h-3 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-                      )}
-                      <span>ProbashiOptionPro.apk (8.4 MB)</span>
-                    </span>
-                    <span className="text-emerald-400 font-black font-mono">{downloadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-400 h-full transition-all duration-100 ease-out" 
-                      style={{ width: `${downloadProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 text-center">
-                    {downloadState === 'downloading' ? (
-                      <span className="text-amber-400 animate-pulse font-semibold">Downloading application file... অনুগ্রহ করে অপেক্ষা করুন...</span>
-                    ) : (
-                      <span>
-                        🎉 Download completed! If it didn't start,{' '}
-                        <button onClick={handleDownloadApp} className="text-emerald-400 font-black underline hover:text-emerald-300">
-                          Click here to Re-download
-                        </button>
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                {/* Important Parsing Warning Alert */}
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-xs space-y-2 text-rose-200">
-                  <p className="font-black text-rose-400 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4" />
-                    <span>গুরুত্বপূর্ণ নোটিশ (Important Notice)</span>
-                  </p>
-                  <p className="leading-relaxed">
-                    যেহেতু এটি একটি নিরাপদ ওয়েব প্ল্যাটফর্ম, ব্রাউজার সরাসরি আসল অ্যান্ড্রয়েড সিগনেচার ফাইল (.apk) তৈরি করতে পারে না। যার ফলে কিছু ফোনে APK ফাইলটি ইনস্টল করার সময় <strong className="text-white">"There was a problem parsing the package"</strong> বা প্যাকেজ পার্সিং ত্রুটি দেখাতে পারে।
-                  </p>
-                  <p className="leading-relaxed font-bold text-emerald-400">
-                    ✅ এই সমস্যার স্থায়ী সমাধানের জন্য উপরে দেওয়া ১ম পদ্ধতি (Instant App) ব্যবহার করুন। এটি ১০০% কাজ করবে!
-                  </p>
-                </div>
-
-                {/* Installation Guidelines for APK */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <span>How to Install APK (APK ইনস্টল করার নিয়ম)</span>
-                    <span className="h-px bg-slate-800 flex-1" />
-                  </h3>
-                  
-                  <div className="space-y-3 text-xs">
-                    {/* Step 1 */}
-                    <div className="flex gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-900/80">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex-shrink-0 flex items-center justify-center font-black text-emerald-400 text-xs">১</div>
-                      <div>
-                        <h4 className="font-extrabold text-white mb-0.5">
-                          Open APK & Tap "Settings" <span className="text-slate-400 font-normal">/ ফাইলটি ওপেন করে সেটিংস চাপুন</span>
-                        </h4>
-                        <p className="text-slate-400 leading-relaxed">
-                          Simply tap the downloaded <span className="text-slate-200 font-semibold">ProbashiOptionPro.apk</span> file. A popup will appear. Click <span className="text-emerald-400 font-bold">"Settings"</span> and turn ON <span className="text-slate-200 font-semibold">"Allow from this source"</span>.
-                          <br />
-                          <span className="text-emerald-400/80">ডাউনলোড হওয়া ফাইলটিতে ক্লিক করুন। একটি পপ-আপ মেসেজ আসবে, সেখানে <strong className="text-emerald-400">Settings</strong>-এ চাপুন এবং <strong className="text-white">"Allow from this source" (অনুমতি দিন)</strong> অপশনটি চালু করুন।</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="flex gap-3 bg-slate-900/50 p-3.5 rounded-xl border border-slate-900/80">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex-shrink-0 flex items-center justify-center font-black text-emerald-400 text-xs">২</div>
-                      <div>
-                        <h4 className="font-extrabold text-white mb-0.5">
-                          Click Install Anyway <span className="text-slate-400 font-normal">/ ইনস্টল এনিওয়ে চাপুন</span>
-                        </h4>
-                        <p className="text-slate-400 leading-relaxed">
-                          Now go back and tap <span className="text-emerald-400 font-bold">"Install"</span>. If Google Play Protect warns you, click <span className="text-amber-400 font-bold">"Install Anyway"</span>.
-                          <br />
-                          <span className="text-emerald-400/80">অনুমতি দেওয়ার পর ব্যাক বাটনে চেপে <strong className="text-emerald-400">Install</strong>-এ চাপুন। কোনো ওয়ার্নিং আসলে <strong className="text-amber-400">"Install Anyway" (তবুও ইনস্টল করুন)</strong> সিলেক্ট করুন।</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-2 flex gap-3">
-              <button
-                onClick={() => setDownloadModalOpen(false)}
-                className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-extrabold py-3.5 rounded-xl text-xs uppercase tracking-wider text-center transition-all"
-              >
-                Close / বন্ধ করুন
-              </button>
-              {downloadTab === 'apk' && (
-                <button
-                  onClick={handleDownloadApp}
-                  disabled={downloadState === 'downloading'}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black py-3.5 rounded-xl text-xs uppercase tracking-wider text-center transition-all shadow shadow-emerald-500/20 flex items-center justify-center gap-1.5"
+                <button 
+                  onClick={() => window.open("https://wa.me/", "_blank")}
+                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-white hover:bg-slate-800/50 transition-colors"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>{downloadState === 'downloading' ? 'Downloading...' : 'Download Again'}</span>
+                  <div className="flex items-center gap-3">
+                    <MessageCircle className="w-5 h-5 text-emerald-400" />
+                    <span>Support</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
-              )}
+                <button 
+                  onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())}
+                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-red-400 hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <LogOut className="w-5 h-5" />
+                    <span>Logout</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
             </div>
+
           </div>
         </div>
       )}
+
+
     </div>
   );
 };

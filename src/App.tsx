@@ -9,7 +9,6 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthScreen } from './components/AuthScreen';
 import { SettingsPage } from './components/SettingsPage';
-import { BoostPage } from './components/BoostPage';
 import { ReferralPage } from './components/ReferralPage';
 
 export function App() {
@@ -17,7 +16,7 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [accountType, setAccountType] = useState<'live' | 'demo'>('demo');
-  const [activeView, setActiveView] = useState<'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'boost' | 'refer'>('trade');
+  const [activeView, setActiveView] = useState<'trade' | 'deposit' | 'withdraw' | 'history' | 'leaderboard' | 'admin' | 'settings' | 'refer'>('trade');
   const [trades, setTrades] = useState<Trade[]>([]);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [darkMode, setDarkMode] = useState<boolean>(true);
@@ -39,6 +38,8 @@ export function App() {
       if (meRes.ok) {
         const user = await meRes.json();
         setCurrentUser(user);
+        if (user.role === "admin") { setActiveView("admin"); }
+        setIsAuthenticated(true);
       }
     } catch (err) {
       console.error('Failed to sync me session state', err);
@@ -130,6 +131,7 @@ export function App() {
             trades={trades}
             onTradeOpened={fetchSessionData}
             darkMode={darkMode}
+            onUserUpdated={fetchSessionData}
           />
         </div>
       )}
@@ -183,12 +185,6 @@ export function App() {
             darkMode={darkMode} 
             setDarkMode={setDarkMode} 
           />
-        </div>
-      )}
-
-      {activeView === 'boost' && (
-        <div className="flex-1 overflow-y-auto">
-          <BoostPage />
         </div>
       )}
 

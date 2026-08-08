@@ -3,8 +3,17 @@
 @theme {
   --font-sans: "Inter", "sans-serif";
   --font-heading: "Montserrat", "sans-serif";
+  --font-display: "Bebas Neue", "sans-serif";
 }
 
+/* বডি টেক্সট এবং ড্যাশবোর্ডের জন্য */
 body {
-  font-family: var(--font-sans);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* হেডিং বা টাইটেলের জন্য */
+h1, h2, h3, .heading {
+  font-family: 'Montserrat', sans-serif;
 }

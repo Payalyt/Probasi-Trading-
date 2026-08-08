@@ -54,7 +54,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccess('Profile settings successfully updated!');
+        setSuccess('Profile successfully updated!');
         onUserUpdated();
         setTimeout(() => setSuccess(null), 4000);
       } else {
@@ -97,6 +97,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="mb-8">
         <h1 className="text-2xl font-black font-heading mb-2">Settings</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">Manage your trading account preferences, wallet credentials, and security settings.</p>
+      </div>
+
+      {/* Verification Status Card */}
+      <div className="mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+            <Shield className="w-6 h-6" />
+          </div>
+          <div className="text-left font-sans">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <span>Account Status</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              আপনার অ্যাকাউন্টটি লাইভ ট্রেডিংয়ের জন্য প্রস্তুত।
+            </p>
+          </div>
+        </div>
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 px-3 py-2 rounded-xl border border-slate-200/50 dark:border-slate-800">
+          Risk Acknowledgment: <span className={user.risk_acknowledged ? 'text-emerald-500 font-bold' : 'text-slate-400'}>{user.risk_acknowledged ? 'Signed ✔' : 'Not Signed'}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
