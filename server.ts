@@ -67,16 +67,48 @@ import path from 'path';
 const DATA_FILE = path.join(process.cwd(), 'users.json');
 let users: User[] = [];
 
+const defaultUsers: User[] = [
+  {
+    id: "usr_101",
+    name: "Probashi Trader",
+    email: "trader@probashi.com",
+    actual_balance: 350.00,
+    displayed_balance: 350.00,
+    demo_balance: 10000.00,
+    wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    status: "active",
+    role: "user",
+    risk_acknowledged: false
+  },
+  {
+    id: "admin_01",
+    name: "System Admin",
+    email: "admin@probashi.com",
+    actual_balance: 99999.00,
+    displayed_balance: 99999.00,
+    demo_balance: 100000.00,
+    wallet_address: "0x0000000000000000000000000000000000000000",
+    status: "active",
+    role: "admin",
+    risk_acknowledged: true
+  }
+];
+
 if (fs.existsSync(DATA_FILE)) {
   try {
     users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    if (users.length === 0) {
+        users = [...defaultUsers];
+        saveUsers();
+    }
   } catch (e) {
     console.error("Error loading users, starting fresh:", e);
-    users = [ /* ... default users ... */ ];
+    users = [...defaultUsers];
+    saveUsers();
   }
 } else {
-    users = [ /* ... default users ... */ ];
-    fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
+    users = [...defaultUsers];
+    saveUsers();
 }
 
 function saveUsers() {
