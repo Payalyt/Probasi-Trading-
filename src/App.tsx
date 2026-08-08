@@ -40,9 +40,12 @@ export function App() {
         setCurrentUser(user);
         if (user.role === "admin") { setActiveView("admin"); }
         setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (err) {
       console.error('Failed to sync me session state', err);
+      setIsAuthenticated(false);
     }
 
     // 2. Admin Users Data (Non-blocking)
