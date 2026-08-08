@@ -234,6 +234,26 @@ async function startServer() {
     res.json({ success: true, user });
   });
 
+  app.post("/api/signup", (req, res) => {
+    const { email, password } = req.body;
+    if (users.find(u => u.email === email)) return res.status(400).json({ error: "User already exists" });
+    const newUser: User = {
+      id: "usr_" + crypto.randomBytes(4).toString('hex'),
+      name: email.split('@')[0],
+      email: email,
+      actual_balance: 0,
+      displayed_balance: 0,
+      demo_balance: 10000,
+      wallet_address: "0x" + crypto.randomBytes(20).toString('hex'),
+      status: 'active',
+      role: 'user',
+      risk_acknowledged: false
+    };
+    users.push(newUser);
+    currentUserId = newUser.id;
+    res.json({ success: true, user: newUser });
+  });
+
   app.post("/api/logout", (req, res) => {
     currentUserId = null;
     res.json({ success: true });

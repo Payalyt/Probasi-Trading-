@@ -16,7 +16,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setError('');
     
     try {
-      const res = await fetch('/api/login', {
+      const endpoint = isSignUp ? '/api/signup' : '/api/login';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
