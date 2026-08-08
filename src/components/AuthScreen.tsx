@@ -16,7 +16,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setError('');
 
     // Simulate demo login
-    if (email === 'demo@probashi.com' && password === 'password') {
+    if (email === 'trader@probashi.com' && password === 'password') {
         onLogin();
         return;
     }
