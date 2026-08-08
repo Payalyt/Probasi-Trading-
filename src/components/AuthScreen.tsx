@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
 
+import { User } from '../types';
+
 interface AuthScreenProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
@@ -17,7 +19,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
     // Simulate demo login
     if (email === 'trader@probashi.com' && password === 'password') {
-        onLogin();
+        const demoUser: User = {
+            id: "usr_101",
+            name: "Probashi Trader",
+            email: "trader@probashi.com",
+            actual_balance: 350.00,
+            displayed_balance: 350.00,
+            demo_balance: 10000.00,
+            wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+            status: "active",
+            role: "user",
+            risk_acknowledged: false
+        };
+        onLogin(demoUser);
         return;
     }
 

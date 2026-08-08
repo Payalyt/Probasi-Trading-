@@ -99,7 +99,7 @@ export function App() {
   };
 
   if (!isAuthenticated) {
-    return <AuthScreen onLogin={() => setIsAuthenticated(true)} />;
+    return <AuthScreen onLogin={(user) => { setCurrentUser(user); setIsAuthenticated(true); }} />;
   }
 
   if (!currentUser) {
