@@ -18,24 +18,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setError('');
 
     // Simulate demo login
-    if (email === 'trader@probashi.com' && password === 'password') {
-        const demoUser: User = {
-            id: "usr_101",
-            name: "Probashi Trader",
-            email: "trader@probashi.com",
-            actual_balance: 350.00,
-            displayed_balance: 350.00,
-            demo_balance: 10000.00,
-            wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-            status: "active",
-            role: "user",
-            risk_acknowledged: false
-        };
-        onLogin(demoUser);
-        return;
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            onLogin(data.user);
+            return;
+        }
+    } catch (e) {
+        console.error("Login failed", e);
     }
-
-    setError('Invalid credentials for demo');
+    
+    setError('Invalid credentials');
   };
 
   return (
