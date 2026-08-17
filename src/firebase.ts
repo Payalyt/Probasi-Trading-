@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  projectId: "mythic-idea-56ppv",
-  appId: "1:218811359782:web:92c71553e4d0d026007ce7",
-  apiKey: "AIzaSyBeIcIPA5-PQP4sQV6lIo-sbAz3G0-F2CA",
-  authDomain: "mythic-idea-56ppv.firebaseapp.com",
-  storageBucket: "mythic-idea-56ppv.firebasestorage.app",
-  messagingSenderId: "218811359782"
+  apiKey: "AIzaSyD0pUzqVXSxAJ7yGNKUiAOIXmv2A7SLFP0",
+  authDomain: "vo3-483404.firebaseapp.com",
+  projectId: "vo3-483404",
+  storageBucket: "vo3-483404.firebasestorage.app",
+  messagingSenderId: "219915998978",
+  appId: "1:219915998978:web:9fbdd91bb030b8f805541b"
 };
 
 const app = initializeApp(firebaseConfig);
