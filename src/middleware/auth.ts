@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { adminAuth } from '../lib/firebase-admin.ts';
-import { DecodedIdToken } from 'firebase-admin/auth';
+import fs from 'fs';
+import path from 'path';
+
+const USERS_FILE = path.join(process.cwd(), 'users.json');
 
 export interface AuthRequest extends Request {
-  user?: DecodedIdToken;
+  user?: any;
 }
 
 export const requireAuth = async (
@@ -16,13 +18,19 @@ export const requireAuth = async (
     return res.status(401).json({ error: 'Unauthorized: Missing token' });
   }
 
-  const token = authHeader.split('Bearer ')[1];
+  const userId = authHeader.split('Bearer ')[1];
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    req.user = decodedToken;
+    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+    const user = users.find((u: any) => u.id === userId);
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: User not found' });
+    }
+    
+    req.user = user;
     next();
   } catch (error) {
-    console.error('Error verifying Firebase ID token:', error);
+    console.error('Error verifying local token:', error);
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 };

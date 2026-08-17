@@ -31,7 +31,7 @@ export function App() {
   }, [darkMode]);
 
   // Initial user session load and polling
-  const fetchSessionData = async () => {
+  const fetchSessionData = async (retryCount = 3) => {
     // 1. Core User Data (Critical for loading the app)
     try {
       const meRes = await fetch('/api/user/me');
@@ -41,7 +41,11 @@ export function App() {
         setIsAuthenticated(true);
       }
     } catch (err) {
-      console.error('Failed to sync me session state', err);
+      if (retryCount > 0) {
+        setTimeout(() => fetchSessionData(retryCount - 1), 1000);
+      } else {
+        console.error('Failed to sync me session state', err);
+      }
     }
 
     // 2. Admin Users Data (Non-blocking)
@@ -50,9 +54,15 @@ export function App() {
       if (usersRes.ok) {
         const data = await usersRes.json();
         setAllUsers(data);
+      } else {
+        throw new Error('Failed to fetch');
       }
     } catch (err) {
-      console.error('Failed to sync admin users state', err);
+      if (retryCount > 0) {
+        setTimeout(() => fetchSessionData(retryCount - 1), 1000);
+      } else {
+        console.error('Failed to sync admin users state', err);
+      }
     }
 
     // 3. Trades Data (Non-blocking)
@@ -61,9 +71,15 @@ export function App() {
       if (tradesRes.ok) {
         const data = await tradesRes.json();
         setTrades(data);
+      } else {
+        throw new Error('Failed to fetch');
       }
     } catch (err) {
-      console.error('Failed to sync trades state', err);
+      if (retryCount > 0) {
+        setTimeout(() => fetchSessionData(retryCount - 1), 1000);
+      } else {
+        console.error('Failed to sync trades state', err);
+      }
     }
 
     // 4. Deposits Data (Non-blocking)
@@ -72,9 +88,15 @@ export function App() {
       if (depositsRes.ok) {
         const data = await depositsRes.json();
         setDeposits(data);
+      } else {
+        throw new Error('Failed to fetch');
       }
     } catch (err) {
-      console.error('Failed to sync deposits state', err);
+      if (retryCount > 0) {
+        setTimeout(() => fetchSessionData(retryCount - 1), 1000);
+      } else {
+        console.error('Failed to sync deposits state', err);
+      }
     }
   };
 

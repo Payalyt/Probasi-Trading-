@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
-import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 import { User } from '../types';
 
@@ -65,43 +63,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const handleGoogleLogin = async () => {
     setError('');
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user.email) {
-        await syncWithBackend(result.user.email, false);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Google Sign-In failed');
-    }
+    // For now, mock Google login as a simple email submission if needed
+    // or just inform user that it's disabled.
+    setError('Google login is currently disabled.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
+    
+    // Bypass Firebase and directly call backend
     try {
-      let result;
-      if (isSignUp) {
-        result = await createUserWithEmailAndPassword(auth, email, password);
-        if (result.user.email) {
-          await syncWithBackend(result.user.email, true);
-        }
-      } else {
-        result = await signInWithEmailAndPassword(auth, email, password);
-        if (result.user.email) {
-          await syncWithBackend(result.user.email, false);
-        }
-      }
+      await syncWithBackend(email, isSignUp);
     } catch (err: any) {
       console.error("Auth failed", err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Email is already registered. Please sign in.');
-      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password.');
-      } else {
-        setError(err.message || 'Authentication failed');
-      }
+      setError('Authentication failed. Please check your credentials.');
     }
   };
 
