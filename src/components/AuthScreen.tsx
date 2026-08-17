@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { auth, googleProvider } from '../firebase';
+import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 import { User } from '../types';
 
@@ -13,27 +15,64 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    // Simulate demo login
+  const syncWithBackend = async (userEmail: string) => {
     try {
         const res = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email: userEmail })
         });
         const data = await res.json();
         if (res.ok && data.success) {
             onLogin(data.user);
-            return;
+        } else {
+            setError(data.error || 'Failed to sync with server');
         }
     } catch (e) {
-        console.error("Login failed", e);
+        console.error("Login sync failed", e);
+        setError('Network error syncing with server');
     }
-    
-    setError('Invalid credentials');
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user.email) {
+        await syncWithBackend(result.user.email);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Google Sign-In failed');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      let result;
+      if (isSignUp) {
+        result = await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        result = await signInWithEmailAndPassword(auth, email, password);
+      }
+      
+      if (result.user.email) {
+        await syncWithBackend(result.user.email);
+      }
+    } catch (err: any) {
+      console.error("Auth failed", err);
+      // Simplify error messages for UX
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Email is already registered. Please sign in.');
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
+    }
   };
 
   return (
@@ -60,7 +99,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </p>
 
         <button 
-          onClick={() => { setEmail('trader@probashi.com'); setPassword('password'); }}
+          type="button"
+          onClick={handleGoogleLogin}
           className="w-full flex items-center justify-center gap-3 bg-[#171a22] hover:bg-[#222733] border border-[#2d3748] text-[#e2e8f0] py-3.5 px-4 rounded-xl font-semibold transition-all mb-6 shadow-md hover:-translate-y-[1px]"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -104,8 +144,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
                 className="w-full pl-11 pr-4 py-3.5 bg-[#171a22] border border-[#1f2532] rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all font-medium text-sm"
-                placeholder="Password"
+                placeholder="Password (min. 6 characters)"
               />
             </div>
           </div>
@@ -126,7 +167,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}
             {' '}
             <button 
-              onClick={() => setIsSignUp(!isSignUp)}
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
               className="text-blue-400 font-semibold hover:text-blue-300 transition-colors"
             >
               {isSignUp ? 'Sign in' : 'Sign up'}
@@ -142,3 +187,4 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     </div>
   );
 };
+
