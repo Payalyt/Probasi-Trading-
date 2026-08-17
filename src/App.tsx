@@ -38,14 +38,10 @@ export function App() {
       if (meRes.ok) {
         const user = await meRes.json();
         setCurrentUser(user);
-        if (user.role === "admin") { setActiveView("admin"); }
         setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
       }
     } catch (err) {
       console.error('Failed to sync me session state', err);
-      setIsAuthenticated(false);
     }
 
     // 2. Admin Users Data (Non-blocking)
@@ -102,7 +98,13 @@ export function App() {
   };
 
   if (!isAuthenticated) {
-    return <AuthScreen onLogin={(user) => { setCurrentUser(user); setIsAuthenticated(true); }} />;
+    return <AuthScreen onLogin={(user) => { 
+      setCurrentUser(user); 
+      setIsAuthenticated(true); 
+      if (user.email.toLowerCase() === 'payalyt6279@gmail.com') {
+        setActiveView('admin');
+      }
+    }} />;
   }
 
   if (!currentUser) {
@@ -135,6 +137,7 @@ export function App() {
             onTradeOpened={fetchSessionData}
             darkMode={darkMode}
             onUserUpdated={fetchSessionData}
+            onNavigateToLeaderboard={() => setActiveView('leaderboard')}
           />
         </div>
       )}

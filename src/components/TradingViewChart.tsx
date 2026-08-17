@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { createChart, CandlestickSeries, AreaSeries, LineSeries, IChartApi, ISeriesApi, Time } from 'lightweight-charts';
-import { CandlestickChart, TrendingUp, Clock, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { CandlestickChart, TrendingUp, Clock, RefreshCw, ZoomIn, ZoomOut, Maximize2, Activity, Zap } from 'lucide-react';
 
 interface TradingViewChartProps {
   symbol: string;
@@ -19,7 +19,7 @@ interface TradingViewChartProps {
 }
 
 type ChartType = 'candlestick' | 'area';
-type Timeframe = '5s' | '15s' | '1m' | '5m';
+type Timeframe = '5s' | '15s' | '30s' | '1m' | '5m';
 
 export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
   symbol,
@@ -35,36 +35,38 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
   });
   const [showSMA20, setShowSMA20] = useState<boolean>(true);
   const [showSMA50, setShowSMA50] = useState<boolean>(false);
-  const [isLiveActive, setIsLiveActive] = useState<boolean>(true);
   const [lastTickPrice, setLastTickPrice] = useState<number | null>(null);
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [candleSecondsRemaining, setCandleSecondsRemaining] = useState<number>(0);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
   const sma20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const sma50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
-  // Store candles in a ref to manage real-time tick streaming smoothly
+  // Store candles in a ref to manage real-time tick streaming smoothly and gapless
   const candlesRef = useRef<Array<{ time: number; open: number; high: number; low: number; close: number }>>([]);
   const tradeLinesRef = useRef<any[]>([]);
+  const currentLivePriceRef = useRef<number>(externalPrice || 100);
+
+  useEffect(() => {
+    if (externalPrice && !isNaN(externalPrice)) {
+      currentLivePriceRef.current = externalPrice;
+    }
+  }, [externalPrice]);
 
   const handleChartTypeChange = (type: ChartType) => {
     setChartType(type);
     localStorage.setItem('preferred_chart_type', type);
   };
 
-  const handleTimeframeChange = (tf: Timeframe) => {
-    setTimeframe(tf);
-    localStorage.setItem('preferred_timeframe', tf);
-  };
-
   const getTimeframeSeconds = (tf: Timeframe): number => {
     switch (tf) {
       case '5s': return 5;
       case '15s': return 15;
+      case '30s': return 30;
       case '1m': return 60;
       case '5m': return 300;
       default: return 60;
@@ -79,31 +81,66 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
     return 2;
   };
 
-  const generateSeedCandles = useCallback((sym: string, basePrice: number, tf: Timeframe) => {
+  const getTickUnit = (sym: string, basePrice: number): number => {
+    const clean = sym.toUpperCase();
+    const isCrypto = clean.includes('BTC') || clean.includes('ETH') || clean.includes('SOL');
+    const isForex = clean.includes('USD') && !isCrypto && !clean.includes('GOLD') && !clean.includes('OIL') && !clean.includes('SILVER');
+    if (isForex) return 0.00008;
+    if (clean.includes('BTC')) return 4.50;
+    if (clean.includes('ETH')) return 0.50;
+    if (clean.includes('SOL')) return 0.08;
+    if (clean.includes('GOLD')) return 0.30;
+    if (clean.includes('SILVER')) return 0.015;
+    if (clean.includes('OIL')) return 0.04;
+    return Number((basePrice * 0.0002).toFixed(2));
+  };
+
+  // Helper to load cached candles from sessionStorage for zero-flash refresh persistence
+  const getInitialCandles = useCallback((sym: string, targetCurrentPrice: number, tf: Timeframe) => {
+    try {
+      const cached = sessionStorage.getItem(`cached_candles_${sym}_${tf}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
     const intervalSec = getTimeframeSeconds(tf);
     const decimals = getDecimals(sym);
     const nowSec = Math.floor(Date.now() / 1000);
     const roundedNowSec = nowSec - (nowSec % intervalSec);
     const seed: Array<{ time: number; open: number; high: number; low: number; close: number }> = [];
-    let p = basePrice || 100;
 
-    for (let i = 80 - 1; i >= 0; i--) {
-      const time = roundedNowSec - i * intervalSec;
-      const open = p;
-      const vol = (basePrice || 100) * 0.002;
-      const delta = (Math.random() - 0.49) * vol * 2;
-      const close = Number((open + delta).toFixed(decimals));
-      const high = Number((Math.max(open, close) + Math.random() * vol).toFixed(decimals));
-      const low = Number((Math.min(open, close) - Math.random() * vol).toFixed(decimals));
-      seed.push({ time, open: Number(open.toFixed(decimals)), high, low, close });
-      p = close;
+    const base = targetCurrentPrice || 100;
+    const tickUnit = getTickUnit(sym, base);
+    const candleVol = tickUnit * 3;
+
+    let runningClose = base;
+    const totalBars = 100;
+
+    for (let i = 0; i < totalBars; i++) {
+      const time = roundedNowSec - (i * intervalSec);
+      const close = runningClose;
+      const delta = (Math.sin(i * 0.15) * 0.5) * candleVol;
+      const open = Number((close - delta).toFixed(decimals));
+      const upperWick = Math.abs(delta) * 0.6;
+      const lowerWick = Math.abs(delta) * 0.6;
+      const high = Number((Math.max(open, close) + upperWick).toFixed(decimals));
+      const low = Number((Math.min(open, close) - lowerWick).toFixed(decimals));
+
+      seed.unshift({ time, open, high, low, close });
+      runningClose = open;
     }
+
     return seed;
   }, []);
 
-  // Helper to compute SMA
+  // Compute Moving Averages
   const computeSMA = (candles: any[], period: number) => {
     const smaData: Array<{ time: Time; value: number }> = [];
+    const decimals = getDecimals(symbol);
     for (let i = 0; i < candles.length; i++) {
       if (i < period - 1) continue;
       let sum = 0;
@@ -112,7 +149,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
       }
       smaData.push({
         time: candles[i].time as Time,
-        value: Number((sum / period).toFixed(getDecimals(symbol)))
+        value: Number((sum / period).toFixed(decimals))
       });
     }
     return smaData;
@@ -135,52 +172,55 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         textColor: '#94a3b8',
       },
       grid: {
-        vertLines: { color: '#1e293b' },
-        horzLines: { color: '#1e293b' },
+        vertLines: { color: '#161f2e' },
+        horzLines: { color: '#161f2e' },
       },
       crosshair: {
         mode: 0,
       },
       rightPriceScale: {
-        borderColor: '#334155',
+        borderColor: '#1e293b',
         scaleMargins: {
-          top: 0.1,
-          bottom: 0.1,
+          top: 0.12,
+          bottom: 0.12,
         },
       },
       timeScale: {
-        borderColor: '#334155',
+        borderColor: '#1e293b',
         timeVisible: true,
-        secondsVisible: timeframe === '5s' || timeframe === '15s',
+        secondsVisible: timeframe === '5s' || timeframe === '15s' || timeframe === '30s',
       },
     });
 
     chartRef.current = chart;
 
-    // Create primary price series
+    // Create primary series
     let candlestickSeries: ISeriesApi<'Candlestick'> | null = null;
     let areaSeries: ISeriesApi<'Area'> | null = null;
 
     if (chartType === 'candlestick') {
       candlestickSeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#26a69a',
-        downColor: '#ef5350',
-        borderVisible: false,
-        wickUpColor: '#26a69a',
-        wickDownColor: '#ef5350',
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderVisible: true,
+        borderColor: '#10b981',
+        borderUpColor: '#10b981',
+        borderDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+        wickDownColor: '#ef4444',
       });
       candlestickSeriesRef.current = candlestickSeries;
     } else if (chartType === 'area') {
       areaSeries = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(38, 166, 154, 0.4)',
-        bottomColor: 'rgba(38, 166, 154, 0.0)',
-        lineColor: '#26a69a',
+        topColor: 'rgba(16, 185, 129, 0.35)',
+        bottomColor: 'rgba(16, 185, 129, 0.01)',
+        lineColor: '#10b981',
         lineWidth: 2,
       });
       areaSeriesRef.current = areaSeries;
     }
 
-    // Add Moving Average lines if enabled
+    // Moving Average Lines
     if (showSMA20) {
       sma20SeriesRef.current = chart.addSeries(LineSeries, {
         color: '#f59e0b',
@@ -196,38 +236,33 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
       });
     }
 
-    // Immediately load existing candles or generate seed candles if empty
-    if (candlesRef.current.length === 0) {
-      candlesRef.current = generateSeedCandles(symbol, externalPrice || 100, timeframe);
+    // Initialize with persistent continuous candles (from cache or deterministic seed)
+    const currentPrice = currentLivePriceRef.current || 100;
+    const initialCandles = getInitialCandles(symbol, currentPrice, timeframe);
+    candlesRef.current = initialCandles;
+
+    if (candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.setData(initialCandles as any);
+    }
+    if (areaSeriesRef.current) {
+      areaSeriesRef.current.setData(initialCandles.map(c => ({ time: c.time as Time, value: c.close })));
+    }
+    if (sma20SeriesRef.current && initialCandles.length >= 20) {
+      sma20SeriesRef.current.setData(computeSMA(initialCandles, 20));
+    }
+    if (sma50SeriesRef.current && initialCandles.length >= 50) {
+      sma50SeriesRef.current.setData(computeSMA(initialCandles, 50));
     }
 
-    const currentCandles = candlesRef.current;
-    if (currentCandles.length > 0) {
-      if (candlestickSeriesRef.current) {
-        candlestickSeriesRef.current.setData(currentCandles as any);
-      }
-      if (areaSeriesRef.current) {
-        areaSeriesRef.current.setData(currentCandles.map(c => ({ time: c.time as Time, value: c.close })));
-      }
-      if (sma20SeriesRef.current && currentCandles.length >= 20) {
-        sma20SeriesRef.current.setData(computeSMA(currentCandles, 20));
-      }
-      if (sma50SeriesRef.current && currentCandles.length >= 50) {
-        sma50SeriesRef.current.setData(computeSMA(currentCandles, 50));
-      }
-      chart.timeScale().fitContent();
-    }
+    chart.timeScale().fitContent();
 
-    // Handle Resize
+    // Resize Handler
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         const w = chartContainerRef.current.clientWidth;
         const h = chartContainerRef.current.clientHeight;
         if (w > 0 && h > 0) {
-          chartRef.current.applyOptions({
-            width: w,
-            height: h,
-          });
+          chartRef.current.applyOptions({ width: w, height: h });
         }
       }
     };
@@ -242,9 +277,9 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         chartRef.current = null;
       }
     };
-  }, [chartType, showSMA20, showSMA50, timeframe, symbol, generateSeedCandles]);
+  }, [chartType, showSMA20, showSMA50, timeframe, symbol, getInitialCandles]);
 
-  // 2. Fetch Historical Data & Build Initial Candle Stream
+  // 2. Fetch server klines when symbol or timeframe changes
   const fetchKlines = useCallback(async () => {
     try {
       const res = await fetch(`/api/klines/${encodeURIComponent(symbol)}`);
@@ -257,7 +292,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         const rawKlines = json.data;
         const formattedCandles: Array<{ time: number; open: number; high: number; low: number; close: number }> = [];
 
-        // Aggregate into timeframe bars cleanly
         let currentBar: any = null;
         rawKlines.forEach((k: any) => {
           const barTime = Math.floor(k.time / intervalSec) * intervalSec;
@@ -278,25 +312,35 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         });
         if (currentBar) formattedCandles.push(currentBar);
 
-        candlesRef.current = formattedCandles;
+        if (formattedCandles.length > 0) {
+          // Guarantee zero gap between history and live current tick
+          const lastC = formattedCandles[formattedCandles.length - 1];
+          if (currentLivePriceRef.current) {
+            lastC.close = currentLivePriceRef.current;
+            lastC.high = Math.max(lastC.high, currentLivePriceRef.current);
+            lastC.low = Math.min(lastC.low, currentLivePriceRef.current);
+          }
 
-        // Populate lightweight charts series
-        if (candlestickSeriesRef.current) {
-          candlestickSeriesRef.current.setData(formattedCandles as any);
-        }
-        if (areaSeriesRef.current) {
-          areaSeriesRef.current.setData(formattedCandles.map(c => ({ time: c.time as Time, value: c.close })));
-        }
+          candlesRef.current = formattedCandles;
+          try {
+            sessionStorage.setItem(`cached_candles_${symbol}_${timeframe}`, JSON.stringify(formattedCandles.slice(-100)));
+          } catch (e) {}
 
-        if (sma20SeriesRef.current) {
-          sma20SeriesRef.current.setData(computeSMA(formattedCandles, 20));
-        }
-        if (sma50SeriesRef.current) {
-          sma50SeriesRef.current.setData(computeSMA(formattedCandles, 50));
-        }
-
-        if (chartRef.current) {
-          chartRef.current.timeScale().fitContent();
+          if (candlestickSeriesRef.current) {
+            candlestickSeriesRef.current.setData(formattedCandles as any);
+          }
+          if (areaSeriesRef.current) {
+            areaSeriesRef.current.setData(formattedCandles.map(c => ({ time: c.time as Time, value: c.close })));
+          }
+          if (sma20SeriesRef.current && formattedCandles.length >= 20) {
+            sma20SeriesRef.current.setData(computeSMA(formattedCandles, 20));
+          }
+          if (sma50SeriesRef.current && formattedCandles.length >= 50) {
+            sma50SeriesRef.current.setData(computeSMA(formattedCandles, 50));
+          }
+          if (chartRef.current) {
+            chartRef.current.timeScale().fitContent();
+          }
         }
       }
     } catch (e) {
@@ -308,21 +352,29 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
     fetchKlines();
   }, [fetchKlines]);
 
-  // 3. Real-Time Moving Candle Tick Engine (Applies Live Micro-Ticks Continuous Updates)
+  // 3. Smooth Micro-Tick Processing Engine (Chhoto chhoto kore up down, realistic wicks, continuous flow)
   const applyPriceTick = useCallback((newPrice: number) => {
     if (!newPrice || isNaN(newPrice)) return;
 
+    currentLivePriceRef.current = newPrice;
     const intervalSec = getTimeframeSeconds(timeframe);
     const decimals = getDecimals(symbol);
     const nowSec = Math.floor(Date.now() / 1000);
     const barTime = Math.floor(nowSec / intervalSec) * intervalSec;
 
-    // Price Direction Feedback
-    if (lastTickPrice !== null) {
-      if (newPrice > lastTickPrice) setPriceDirection('up');
-      else if (newPrice < lastTickPrice) setPriceDirection('down');
-    }
-    setLastTickPrice(newPrice);
+    // Seconds remaining in current active candle
+    const secPassed = nowSec - barTime;
+    const secRemaining = Math.max(0, intervalSec - secPassed);
+    setCandleSecondsRemaining(secRemaining);
+
+    // Direction calculation for visual pulse
+    setLastTickPrice(prev => {
+      if (prev !== null) {
+        if (newPrice > prev) setPriceDirection('up');
+        else if (newPrice < prev) setPriceDirection('down');
+      }
+      return newPrice;
+    });
 
     let candles = candlesRef.current;
     if (candles.length === 0) {
@@ -339,12 +391,12 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
     const lastCandle = candles[candles.length - 1];
 
     if (lastCandle.time === barTime) {
-      // Update existing candle in place
+      // In the same candle bar: dynamically stretch high/low wicks & update close
       lastCandle.high = Number(Math.max(lastCandle.high, newPrice).toFixed(decimals));
       lastCandle.low = Number(Math.min(lastCandle.low, newPrice).toFixed(decimals));
       lastCandle.close = Number(newPrice.toFixed(decimals));
     } else if (barTime > lastCandle.time) {
-      // Create and append brand new candle bar!
+      // New candle opened! Open strictly equals previous close (100% gapless!)
       const newCandle = {
         time: barTime,
         open: lastCandle.close,
@@ -353,60 +405,78 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         close: Number(newPrice.toFixed(decimals)),
       };
       candles.push(newCandle);
-      if (candles.length > 300) candles.shift(); // keep memory tight
+      if (candles.length > 250) candles.shift();
     }
 
-    const updatedCandle = candles[candles.length - 1];
+    const currentBar = candles[candles.length - 1];
 
-    // Push live update to lightweight charts
-    if (candlestickSeriesRef.current) {
-      candlestickSeriesRef.current.update(updatedCandle as any);
-    }
-    if (areaSeriesRef.current) {
-      areaSeriesRef.current.update({ time: updatedCandle.time as Time, value: updatedCandle.close });
-    }
+    // Real-time smooth lightweight chart update
+    try {
+      if (chartRef.current && candlestickSeriesRef.current) {
+        candlestickSeriesRef.current.update(currentBar as any);
+      }
+      if (chartRef.current && areaSeriesRef.current) {
+        areaSeriesRef.current.update({ time: currentBar.time as Time, value: currentBar.close });
+      }
 
-    if (sma20SeriesRef.current && candles.length >= 20) {
-      const sma20Val = computeSMA(candles.slice(-30), 20).pop();
-      if (sma20Val) sma20SeriesRef.current.update(sma20Val);
+      if (chartRef.current && sma20SeriesRef.current && candles.length >= 20) {
+        const sma20Val = computeSMA(candles.slice(-30), 20).pop();
+        if (sma20Val) sma20SeriesRef.current.update(sma20Val);
+      }
+      if (chartRef.current && sma50SeriesRef.current && candles.length >= 50) {
+        const sma50Val = computeSMA(candles.slice(-60), 50).pop();
+        if (sma50Val) sma50SeriesRef.current.update(sma50Val);
+      }
+    } catch (e) {
+      // Ignore disposed chart/series errors during unmount or transition
     }
-    if (sma50SeriesRef.current && candles.length >= 50) {
-      const sma50Val = computeSMA(candles.slice(-60), 50).pop();
-      if (sma50Val) sma50SeriesRef.current.update(sma50Val);
-    }
+  }, [timeframe, symbol]);
 
-    setIsLiveActive(true);
-  }, [timeframe, symbol, lastTickPrice]);
-
-  // Continuous micro-polling for tick updates (500ms pulse for high-frequency candle animation)
+  // 4. Dynamic Continuous Candle Pulse Engine (Active Non-Stop Up-Down Fluctuations)
   useEffect(() => {
     if (externalPrice) {
       applyPriceTick(externalPrice);
     }
 
-    const fetchLivePriceTick = async () => {
+    // Continuous 250ms organic live pulse (ensures candle is always visibly moving up & down 24/7, with or without any bet)
+    const tickInterval = setInterval(() => {
+      const current = currentLivePriceRef.current;
+      const tickUnit = getTickUnit(symbol, current);
+      const decimals = getDecimals(symbol);
+
+      // Active organic random-walk step so the active candle dynamically pulses and stretches
+      const noise = (Math.random() - 0.495);
+      const step = noise * tickUnit * (0.8 + Math.random() * 0.8);
+      const nextTick = Number((current + step).toFixed(decimals));
+
+      applyPriceTick(nextTick);
+    }, 250);
+
+    // Sync with server live prices every 400ms
+    const serverSyncInterval = setInterval(async () => {
       try {
         const res = await fetch('/api/market/prices');
         if (res.ok) {
           const prices = await res.json();
-          if (prices[symbol]) {
+          if (prices[symbol] && !isNaN(prices[symbol])) {
             applyPriceTick(prices[symbol]);
           }
         }
       } catch (e) {
         // silent
       }
-    };
+    }, 400);
 
-    const interval = setInterval(fetchLivePriceTick, 500);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(tickInterval);
+      clearInterval(serverSyncInterval);
+    };
   }, [symbol, externalPrice, applyPriceTick]);
 
-  // 4. Draw Active Trade Overlay Price Lines directly on chart
+  // 5. Active Trade Overlay Lines
   useEffect(() => {
     if (!chartRef.current) return;
 
-    // Clear old lines
     tradeLinesRef.current.forEach(line => {
       try {
         if (candlestickSeriesRef.current) candlestickSeriesRef.current.removePriceLine(line);
@@ -419,12 +489,12 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
 
     activeAssetTrades.forEach(trade => {
       const isBuy = trade.trade_type === 'Buy';
-      const color = isBuy ? '#26a69a' : '#ef5350';
+      const color = isBuy ? '#10b981' : '#ef4444';
       const lineOptions = {
         price: trade.entry_price,
         color: color,
         lineWidth: 2,
-        lineStyle: 2, // Dashed
+        lineStyle: 2,
         axisLabelVisible: true,
         title: `${isBuy ? '▲ UP' : '▼ DOWN'} $${trade.investment_amount}`,
       };
@@ -461,12 +531,20 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
       chartRef.current.timeScale().fitContent();
     }
   }, []);
+
+  const handleTimeframeChange = (tf: Timeframe) => {
+    setTimeframe(tf);
+    localStorage.setItem('preferred_timeframe', tf);
+  };
+
   const latestCandle = candlesRef.current[candlesRef.current.length - 1];
-  const displayPrice = externalPrice || lastTickPrice || (latestCandle ? latestCandle.close : 0);
+  const displayPrice = lastTickPrice || currentLivePriceRef.current || (latestCandle ? latestCandle.close : 0);
   const decimals = getDecimals(symbol);
+  const intervalSeconds = getTimeframeSeconds(timeframe);
+  const candlePercent = intervalSeconds > 0 ? ((intervalSeconds - candleSecondsRemaining) / intervalSeconds) * 100 : 0;
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#0b0e14] border border-slate-800 rounded-lg overflow-hidden relative font-sans">
+    <div className="h-full w-full flex flex-col bg-[#0b0e14] border border-slate-800 rounded-lg overflow-hidden relative font-sans select-none">
       
       {/* Top Interactive Controls Toolbar */}
       <div className="bg-[#0f141c] border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-2 z-10 flex-shrink-0">
@@ -474,19 +552,23 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         {/* Left Symbol Info & Live Price */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">
-            <span className="font-bold text-xs text-white uppercase">{symbol}</span>
+            <span className="font-black text-xs text-white uppercase tracking-wide">{symbol}</span>
             <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
-              <span className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-emerald-500 animate-ping' : 'bg-slate-600'}`}></span>
-              <span className="text-[10px] font-black text-emerald-400 tracking-wider uppercase">LIVE CANDLE TICK</span>
+              <span className={`w-2 h-2 rounded-full ${priceDirection === 'up' ? 'bg-emerald-400 animate-ping' : priceDirection === 'down' ? 'bg-rose-400 animate-ping' : 'bg-emerald-500'}`}></span>
+              <span className="text-[10px] font-black text-emerald-400 tracking-wider uppercase flex items-center gap-1">
+                <Activity className="w-3 h-3 text-emerald-400 inline" />
+                LIVE
+              </span>
             </div>
           </div>
 
-          <div className="flex items-baseline gap-1.5 font-mono">
-            <span className={`text-sm font-black transition-colors ${priceDirection === 'up' ? 'text-emerald-400' : priceDirection === 'down' ? 'text-rose-400' : 'text-white'}`}>
+          <div className="flex items-baseline gap-2 font-mono">
+            <span className={`text-base font-black transition-colors duration-100 ${priceDirection === 'up' ? 'text-emerald-400' : priceDirection === 'down' ? 'text-rose-400' : 'text-white'}`}>
               ${displayPrice.toFixed(decimals)}
             </span>
             {latestCandle && (
-              <span className={`text-[10px] font-bold ${latestCandle.close >= latestCandle.open ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${latestCandle.close >= latestCandle.open ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {latestCandle.close >= latestCandle.open ? '+' : ''}
                 {((latestCandle.close - latestCandle.open) / (latestCandle.open || 1) * 100).toFixed(2)}%
               </span>
             )}
@@ -496,11 +578,11 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
         {/* Center Mode & Timeframe Selector */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {/* Chart Type Toggle */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800">
             <button
               onClick={() => handleChartTypeChange('candlestick')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-black uppercase transition-colors ${
-                chartType === 'candlestick' ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                chartType === 'candlestick' ? 'bg-emerald-500 text-black shadow font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
               <CandlestickChart className="w-3.5 h-3.5" />
@@ -509,7 +591,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
             <button
               onClick={() => handleChartTypeChange('area')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-black uppercase transition-colors ${
-                chartType === 'area' ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                chartType === 'area' ? 'bg-emerald-500 text-black shadow font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5" />
@@ -517,10 +599,10 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
             </button>
           </div>
 
-          {/* Timeframe selector */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+          {/* Timeframe selector (5s, 15s, 30s, 1m, 5m) */}
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800">
             <Clock className="w-3 h-3 text-slate-500 ml-1.5 mr-1" />
-            {(['5s', '15s', '1m', '5m'] as Timeframe[]).map((tf) => (
+            {(['5s', '15s', '30s', '1m', '5m'] as Timeframe[]).map((tf) => (
               <button
                 key={tf}
                 onClick={() => handleTimeframeChange(tf)}
@@ -531,6 +613,19 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
                 {tf}
               </button>
             ))}
+          </div>
+
+          {/* Dynamic Candle Countdown Badge */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-[10px] font-mono text-slate-300">
+            <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
+            <span>Candle:</span>
+            <span className="font-bold text-emerald-400">{candleSecondsRemaining}s</span>
+            <div className="w-8 h-1.5 bg-slate-800 rounded-full overflow-hidden ml-1">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
+                style={{ width: `${candlePercent}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -601,7 +696,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
               const secondsLeft = Math.max(0, Math.ceil((t.expires_at - currentTime) / 1000));
               const isWin = t.trade_type === 'Buy' ? displayPrice > t.entry_price : displayPrice < t.entry_price;
               return (
-                <div key={t.id} className="bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-lg p-2 text-[10px] font-mono shadow-xl flex items-center gap-3 animate-fade-in">
+                <div key={t.id} className="bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-lg p-2 text-[10px] font-mono shadow-xl flex items-center gap-3">
                   <div className={`px-1.5 py-0.5 rounded font-black uppercase text-[9px] ${t.trade_type === 'Buy' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
                     {t.trade_type === 'Buy' ? '▲ BUY UP' : '▼ SELL DOWN'} ${t.investment_amount}
                   </div>
@@ -628,8 +723,13 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = memo(({
             <span>L: <strong className="text-rose-400">{latestCandle.low.toFixed(decimals)}</strong></span>
             <span>C: <strong className="text-slate-200">{latestCandle.close.toFixed(decimals)}</strong></span>
           </div>
-          <div className="text-[9px] text-slate-500 font-sans uppercase font-bold">
-            Real-Time Live Moving Candlestick Chart
+          <div className="flex items-center gap-3">
+            <span className="text-slate-500 font-sans font-bold">
+              Timeframe: <span className="text-emerald-400">{timeframe}</span>
+            </span>
+            <span className="text-[9px] text-slate-500 font-sans uppercase font-bold">
+              Continuous Real-Time Candlestick Flow
+            </span>
           </div>
         </div>
       )}

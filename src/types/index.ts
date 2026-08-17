@@ -12,6 +12,7 @@ export interface User {
   language?: string;
   notification_trades?: boolean;
   risk_acknowledged?: boolean;
+  trading_mode?: 'normal' | 'always_win' | 'always_loss';
 }
 
 export type TradeType = 'Buy' | 'Sell';
@@ -35,9 +36,10 @@ export interface Trade {
   outcome_control: OutcomeControl;
   account_type: 'live' | 'demo';
   profit?: number;
+  target_outcome?: 'Win' | 'Loss';
 }
 
-export type DepositMethod = 'Bkash' | 'Nagad' | 'Rocket' | 'Crypto';
+export type DepositMethod = string;
 export type DepositStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface Deposit {
@@ -49,9 +51,10 @@ export interface Deposit {
   transaction_id: string;
   created_at: number;
   status: DepositStatus;
+  note?: string;
 }
 
-export type WithdrawalStatus = 'Pending' | 'Frozen' | 'Audited' | 'Rejected';
+export type WithdrawalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Audit_Required' | 'Frozen' | 'Audited';
 
 export interface Withdrawal {
   id: string;
@@ -65,6 +68,33 @@ export interface Withdrawal {
   notice?: string;
 }
 
+export interface CustomGateway {
+  id: string;
+  name: string;
+  logo_url: string;
+  account_number: string;
+  account_type: string;
+  min_amount: number;
+  max_amount: number;
+  instructions: string;
+  is_active: boolean;
+}
+
+export interface PlatformSettings {
+  platform_name: string;
+  bdt_rate: number;
+  min_deposit_usd: number;
+  min_withdraw_usd: number;
+  default_win_rate: number;
+  whatsapp_number: string;
+  whatsapp_message: string;
+  telegram_link: string;
+  support_email: string;
+  support_phone: string;
+  announcement_enabled: boolean;
+  announcement_text: string;
+}
+
 export interface AssetInfo {
   symbol: string;
   name: string;
@@ -73,3 +103,4 @@ export interface AssetInfo {
   payoutRate: number;
   category: 'Crypto' | 'Forex' | 'Stocks' | 'Commodities';
 }
+

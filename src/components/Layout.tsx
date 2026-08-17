@@ -1,6 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
-import { LogOut, MessageCircle, Sun, Moon, Wallet, Menu, X, ArrowUpRight, TrendingUp, ChevronDown, Trophy, History, ShieldAlert, ArrowDownLeft, CheckCircle2, Lock, Sparkles, UserCheck, Bell, Copy, ChevronRight, Gift, Download, Settings, Plus, CreditCard, ArrowRightLeft, User as UserIcon } from 'lucide-react';
+import { User, PlatformSettings } from '../types';
+import { 
+  LogOut, 
+  MessageCircle, 
+  Sun, 
+  Moon, 
+  Wallet, 
+  Menu, 
+  X, 
+  ArrowUpRight, 
+  TrendingUp, 
+  ChevronDown, 
+  Trophy, 
+  History, 
+  ShieldAlert, 
+  ArrowDownLeft, 
+  CheckCircle2, 
+  Lock, 
+  Sparkles, 
+  UserCheck, 
+  Bell, 
+  Copy, 
+  ChevronRight, 
+  Gift, 
+  Download, 
+  Settings, 
+  Plus, 
+  CreditCard, 
+  ArrowRightLeft, 
+  User as UserIcon,
+  Shield,
+  Volume2
+} from 'lucide-react';
 
 interface SidebarProps {
   user: User;
@@ -15,11 +46,15 @@ interface SidebarProps {
   children: React.ReactNode;
 }
 
-const SidebarIcon = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
+const SidebarIcon = ({ icon, label, active, onClick, highlight }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void, highlight?: boolean }) => (
   <button
     onClick={onClick}
     className={`flex flex-col items-center justify-center gap-1 w-14 h-14 rounded-xl transition-all ${
-      active ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+      active 
+        ? highlight ? 'bg-amber-500/20 text-amber-400 font-black' : 'bg-emerald-500/10 text-emerald-400 font-black' 
+        : highlight 
+        ? 'text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10' 
+        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
     }`}
     title={label}
   >
@@ -46,32 +81,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
 
-  const displayBalance = accountType === 'demo' ? user.demo_balance : user.displayed_balance;
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
+    platform_name: "PROBASHI TRADING",
+    bdt_rate: 125,
+    min_deposit_usd: 10,
+    min_withdraw_usd: 15,
+    default_win_rate: 30,
+    whatsapp_number: "+8801711982345",
+    whatsapp_message: "Hello Support, I need assistance.",
+    telegram_link: "https://t.me/probashitrading_support",
+    support_email: "support@probashitrading.com",
+    support_phone: "+880 1711-982345",
+    announcement_enabled: true,
+    announcement_text: "🔥 ডিপোজিট বোনাস ও ২৪/৭ ক্যাশ আউট হেল্পলাইন সক্রিয়।"
+  });
+
+  useEffect(() => {
+    fetch('/api/platform-settings')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setPlatformSettings(data); })
+      .catch(console.error);
+  }, []);
 
   const handleCopyId = () => {
-    navigator.clipboard.writeText('137940571');
+    navigator.clipboard.writeText(user.id.slice(0, 8));
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
+
+  const whatsappUrl = `https://wa.me/${(platformSettings.whatsapp_number || '+8801711982345').replace(/\D/g, '')}?text=${encodeURIComponent(platformSettings.whatsapp_message || 'Hello Probashi Trading Support, I need help.')}`;
 
   return (
     <div className="flex flex-row h-screen w-screen overflow-hidden bg-[#0b0e14]">
       {/* Left Sidebar (Desktop Only) */}
       <aside className="hidden md:flex w-20 flex-shrink-0 h-full bg-[#0b0e14] border-r border-slate-800 flex-col items-center py-4 justify-between z-50">
-        <div className="flex flex-col items-center gap-6 w-full">
+        <div className="flex flex-col items-center gap-5 w-full">
           <button
             onClick={() => setActiveView('trade')}
-            className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-2"
+            className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-1 hover:scale-105 transition-transform"
           >
             <TrendingUp className="w-5 h-5" />
           </button>
 
-          <div className="flex flex-col items-center gap-2 w-full">
+          <div className="flex flex-col items-center gap-1.5 w-full">
             <SidebarIcon 
               icon={<TrendingUp className="w-5 h-5" />} 
               label="Trades"
               active={activeView === 'trade'} 
               onClick={() => setActiveView('trade')} 
+            />
+            <SidebarIcon 
+              icon={<Trophy className="w-5 h-5 text-amber-400" />} 
+              label="Top 20"
+              active={activeView === 'leaderboard'} 
+              onClick={() => setActiveView('leaderboard')} 
             />
             <SidebarIcon 
               icon={<Wallet className="w-5 h-5" />} 
@@ -97,6 +160,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               active={activeView === 'refer'} 
               onClick={() => setActiveView('refer')} 
             />
+
+            {/* Admin Panel Icon (Visible only to admins) */}
+            {user.role === 'admin' && (
+              <SidebarIcon 
+                icon={<Shield className="w-5 h-5 text-amber-400" />} 
+                label="Admin"
+                highlight={true}
+                active={activeView === 'admin'} 
+                onClick={() => setActiveView('admin')} 
+              />
+            )}
+
             <SidebarIcon 
               icon={<Settings className="w-5 h-5" />} 
               label="Settings"
@@ -104,26 +179,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => setActiveView('settings')} 
             />
             <SidebarIcon 
-              icon={<MessageCircle className="w-5 h-5" />} 
+              icon={<MessageCircle className="w-5 h-5 text-emerald-400" />} 
               label="Support"
               active={false} 
-              onClick={() => window.open("https://wa.me/", "_blank")} 
+              onClick={() => window.open(whatsappUrl, "_blank")} 
             />
             <SidebarIcon 
-              icon={<LogOut className="w-5 h-5 text-red-400" />} 
+              icon={<LogOut className="w-5 h-5 text-rose-400" />} 
               label="Logout"
               active={false} 
               onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())} 
             />
           </div>
         </div>
-
-        <div className="flex flex-col items-center gap-4 w-full">
-          {/* User Profile or other bottom actions can go here */}
-        </div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col h-full">
+        {/* Top Announcement Bar if enabled */}
+        {platformSettings.announcement_enabled && platformSettings.announcement_text && (
+          <div className="bg-gradient-to-r from-amber-600 via-emerald-700 to-teal-800 text-white text-[11px] font-bold py-1.5 px-4 flex items-center justify-between shadow-sm select-none z-50">
+            <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+              <span className="bg-black/30 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-mono">Notice</span>
+              <span className="truncate">{platformSettings.announcement_text}</span>
+            </div>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-4 shrink-0 underline text-emerald-200 hover:text-white flex items-center gap-1 font-mono text-[10px]"
+            >
+              <span>WhatsApp Admin</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+
         <header className="bg-[#0b0e14] border-b border-slate-800 sticky top-0 z-40 px-3 md:px-6 py-2 transition-colors text-white font-sans flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3">
             <button
@@ -135,10 +225,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="text-sm md:text-base font-black tracking-tight text-white flex items-center gap-1 font-heading">
               Probashi <span className="text-emerald-400 font-extrabold">Trading</span>
             </div>
-            <div className="hidden md:block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-semibold uppercase">Institutional Pro</div>
+            <div className="hidden md:block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-semibold uppercase">
+              {user.role === 'admin' ? 'Admin Controller' : 'Institutional Pro'}
+            </div>
           </div>
           
           <div className="flex items-center gap-2 md:gap-3">
+            {/* Top 20 Winner Button */}
+            <button
+              onClick={() => setActiveView('leaderboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                activeView === 'leaderboard'
+                  ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                  : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-amber-400'
+              }`}
+              title="Top 20 Winners Leaderboard"
+            >
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">Top 20</span>
+            </button>
+
+            {/* Admin Direct Button in Header */}
+            {user.role === 'admin' && (
+              <button
+                onClick={() => setActiveView('admin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                  activeView === 'admin'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                    : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400'
+                }`}
+                title="Admin Full Website Control Panel"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin Panel</span>
+              </button>
+            )}
+
             <button
               onClick={() => setAccountsDrawerOpen(true)}
               className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm group"
@@ -186,7 +308,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
             onClick={() => setLeftDrawerOpen(false)}
           />
-          <div className="fixed top-0 left-0 bottom-0 w-80 bg-[#0b0e14] border-r border-slate-800 p-6 space-y-6 z-50 flex flex-col justify-between shadow-2xl transition-transform text-white">
+          <div className="fixed top-0 left-0 bottom-0 w-80 bg-[#0b0e14] border-r border-slate-800 p-6 space-y-6 z-50 flex flex-col justify-between shadow-2xl transition-transform text-white overflow-y-auto">
             
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -207,7 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
 
-              {/* Navigation Links - Clean 4 Tabs ONLY as strictly requested */}
+              {/* Navigation Links */}
               <nav className="space-y-2 font-medium text-sm">
                 <button
                   onClick={() => {
@@ -224,6 +346,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>Trading Room</span>
                 </button>
 
+                {user.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      setActiveView('admin');
+                      setLeftDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 ${
+                      activeView === 'admin'
+                        ? 'bg-amber-500 text-slate-950 font-black'
+                        : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 font-bold border border-amber-500/20'
+                    }`}
+                  >
+                    <Shield className="w-5 h-5" />
+                    <span>Admin Control Panel (অ্যাডমিন)</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setActiveView('leaderboard');
+                    setLeftDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 ${
+                    activeView === 'leaderboard'
+                      ? 'bg-emerald-500 text-slate-950 font-extrabold'
+                      : 'text-slate-300 hover:bg-slate-900'
+                  }`}
+                >
+                  <Trophy className="w-5 h-5 text-amber-400" />
+                  <span>Top 20 Winners (টপ উইনার)</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setActiveView('deposit');
@@ -236,7 +390,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <ArrowDownLeft className="w-5 h-5" />
-                  <span>Instant Deposit</span>
+                  <span>Instant Deposit (ডিপোজিট)</span>
                 </button>
 
                 <button
@@ -251,7 +405,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <ArrowUpRight className="w-5 h-5" />
-                  <span>Fast Withdraw</span>
+                  <span>Fast Withdraw (ক্যাশ আউট)</span>
                 </button>
 
                 <button
@@ -266,7 +420,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <History className="w-5 h-5" />
-                  <span>History</span>
+                  <span>Transactions History</span>
                 </button>
 
                 <button
@@ -281,7 +435,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <Gift className="w-5 h-5" />
-                  <span>Refer</span>
+                  <span>Refer & Earn</span>
                 </button>
 
                 <button
@@ -300,7 +454,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
                 <div className="h-px bg-slate-800 my-2"></div>
                 <button
-                  onClick={() => window.open("https://wa.me/", "_blank")}
+                  onClick={() => window.open(whatsappUrl, "_blank")}
                   className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-emerald-400 hover:bg-slate-900 font-bold"
                 >
                   <MessageCircle className="w-5 h-5" />
@@ -308,7 +462,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
                 <button
                   onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())}
-                  className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-red-400 hover:bg-slate-900 font-bold"
+                  className="w-full text-left px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-rose-400 hover:bg-slate-900 font-bold"
                 >
                   <LogOut className="w-5 h-5" />
                   <span>Logout</span>
@@ -316,29 +470,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </nav>
             </div>
 
-            {/* Bottom Account Switcher */}
-            <div className="pt-4 border-t border-slate-800 text-xs text-slate-400 space-y-2">
-              <div className="font-semibold flex items-center justify-between">
-                <span>Active Trader Profile:</span>
-                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-              </div>
-              <select
-                value={user.id}
-                onChange={(e) => onSwitchUser(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-200 text-xs font-semibold outline-none"
-              >
-                {allUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.role.toUpperCase()})
-                  </option>
-                ))}
-              </select>
-            </div>
+
           </div>
         </div>
       )}
 
-      {/* 2. ACCOUNTS DRAWER (OLYMP TRADE ACCOUNTS PANEL) */}
+      {/* 2. ACCOUNTS DRAWER */}
       {accountsDrawerOpen && (
         <div className="fixed inset-0 z-50">
           <div
@@ -346,9 +483,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setAccountsDrawerOpen(false)}
           />
           <div className="fixed top-0 right-0 bottom-0 w-80 md:w-96 bg-[#0b0e14] border-l border-slate-800 p-6 space-y-6 z-50 flex flex-col justify-between shadow-2xl transition-transform text-white">
-            
             <div className="space-y-6">
-              
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <h2 className="font-extrabold text-xl text-white font-heading">Accounts</h2>
                 <button
@@ -360,7 +495,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <div className="space-y-4">
-                
                 {/* Demo Account */}
                 <div 
                   onClick={() => {
@@ -387,7 +521,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
 
-                {/* BDT Real Account */}
+                {/* Real Account */}
                 <div 
                   onClick={() => {
                     setAccountType('live');
@@ -411,7 +545,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ${user.displayed_balance.toFixed(2)}
                   </div>
 
-                  {/* Withdraw & Deposit action buttons */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
                     <button
                       onClick={(e) => {
@@ -435,22 +568,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   </div>
                 </div>
-
-                {/* USDT Account */}
-                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/30 opacity-75">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-xs">T</span>
-                    <span className="font-bold text-sm text-slate-300">USDT Account</span>
-                  </div>
-                  <div className="text-lg font-black font-mono text-slate-400 pl-8">
-                    USDT 0.00
-                  </div>
-                </div>
-
-                <button className="w-full py-3 flex items-center justify-center gap-2 text-slate-400 hover:text-white border border-dashed border-slate-800 hover:border-slate-700 rounded-2xl text-xs font-bold transition-all">
-                  <Plus className="w-4 h-4" />
-                  <span>Add Account</span>
-                </button>
               </div>
             </div>
 
@@ -461,7 +578,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* 3. PAYMENTS DRAWER (OLYMP TRADE PAYMENTS PANEL) */}
+      {/* 3. PAYMENTS DRAWER */}
       {paymentsDrawerOpen && (
         <div className="fixed inset-0 z-50">
           <div
@@ -469,9 +586,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setPaymentsDrawerOpen(false)}
           />
           <div className="fixed top-0 right-0 bottom-0 w-80 md:w-96 bg-[#0b0e14] border-l border-slate-800 p-6 space-y-6 z-50 flex flex-col justify-between shadow-2xl transition-transform text-white">
-            
             <div className="space-y-6">
-              
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <h2 className="font-extrabold text-2xl text-white font-heading">Payments</h2>
                 <button
@@ -482,17 +597,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
 
-              {/* Stacked Payment Option Buttons */}
               <div className="space-y-3">
                 <button
                   onClick={() => {
                     setActiveView('deposit');
                     setPaymentsDrawerOpen(false);
                   }}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black p-4 rounded-2xl flex items-center gap-3 text-base shadow-lg shadow-emerald-500/20 transition-all group"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black p-4 rounded-2xl flex items-center gap-3 text-base shadow-lg shadow-emerald-500/20 transition-all"
                 >
                   <Wallet className="w-5 h-5" />
-                  <span>Deposit</span>
+                  <span>Deposit (ডিপোজিট)</span>
                 </button>
 
                 <button
@@ -503,18 +617,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 p-4 rounded-2xl flex items-center gap-3 text-base font-bold text-white transition-all"
                 >
                   <ArrowUpRight className="w-5 h-5 text-emerald-400" />
-                  <span>Withdraw</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveView('deposit');
-                    setPaymentsDrawerOpen(false);
-                  }}
-                  className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 p-4 rounded-2xl flex items-center gap-3 text-base font-bold text-white transition-all"
-                >
-                  <ArrowRightLeft className="w-5 h-5 text-sky-400" />
-                  <span>Transfer</span>
+                  <span>Withdraw (ক্যাশ আউট)</span>
                 </button>
 
                 <button
@@ -538,7 +641,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* 4. AUTHENTIC PROFILE DRAWER SIDE-PANEL (EXACTLY AS PROVIDED IN IMAGE 4) */}
+      {/* 4. PROFILE DRAWER */}
       {profileDrawerOpen && (
         <div className="fixed inset-0 z-50">
           <div
@@ -546,8 +649,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setProfileDrawerOpen(false)}
           />
           <div className="fixed top-0 right-0 bottom-0 w-80 md:w-96 bg-[#0b0e14] border-l border-slate-800 p-6 space-y-6 z-50 overflow-y-auto shadow-2xl transition-transform text-white scrollbar-none">
-            
-            {/* Top Bar with Bell & Close */}
             <div className="flex items-center justify-between">
               <button className="p-2 text-slate-400 hover:text-white transition-colors relative">
                 <Bell className="w-5 h-5" />
@@ -561,13 +662,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
 
-            {/* User Profile Header */}
             <div className="text-center space-y-1">
-              <h1 className="text-3xl font-black text-white tracking-tight font-heading">
+              <h1 className="text-2xl font-black text-white tracking-tight font-heading">
                 {user.name}
               </h1>
               <div className="flex items-center justify-center gap-1.5 text-slate-400 text-xs font-mono">
-                <span>ID 137940571</span>
+                <span>Role: <strong className="text-amber-400 uppercase">{user.role}</strong></span>
+                <span className="text-slate-600">|</span>
+                <span>ID {user.id.slice(0, 8)}</span>
                 <button 
                   onClick={handleCopyId}
                   className="p-1 hover:text-white transition-colors"
@@ -579,13 +681,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* GENERAL Section */}
             <div className="space-y-3">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                General
+                Menu Options
               </div>
 
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl divide-y divide-slate-800">
+                {user.role === 'admin' && (
+                  <button 
+                    onClick={() => {
+                      setActiveView('admin');
+                      setProfileDrawerOpen(false);
+                    }}
+                    className="w-full p-4 flex items-center justify-between text-sm font-bold text-amber-400 hover:bg-slate-800/50 transition-colors bg-amber-500/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-5 h-5 text-amber-400" />
+                      <span>Admin Control Dashboard</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-amber-400" />
+                  </button>
+                )}
+
+                <button 
+                  onClick={() => {
+                    setActiveView('leaderboard');
+                    setProfileDrawerOpen(false);
+                  }}
+                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-white hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Trophy className="w-5 h-5 text-amber-400" />
+                    <span>Top 20 Winners</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
+
                 <button 
                   onClick={() => {
                     setActiveView('settings');
@@ -599,19 +730,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
+
                 <button 
-                  onClick={() => window.open("https://wa.me/", "_blank")}
+                  onClick={() => window.open(whatsappUrl, "_blank")}
                   className="w-full p-4 flex items-center justify-between text-sm font-semibold text-white hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <MessageCircle className="w-5 h-5 text-emerald-400" />
-                    <span>Support</span>
+                    <span>WhatsApp Support</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
+
                 <button 
                   onClick={() => fetch("/api/logout", { method: "POST" }).then(() => window.location.reload())}
-                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-red-400 hover:bg-slate-800/50 transition-colors"
+                  className="w-full p-4 flex items-center justify-between text-sm font-semibold text-rose-400 hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <LogOut className="w-5 h-5" />
@@ -621,14 +754,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
-
-
     </div>
   );
 };
-
-

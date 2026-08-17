@@ -11,6 +11,7 @@ interface TradingDashboardProps {
   onTradeOpened: () => void;
   darkMode: boolean;
   onUserUpdated?: () => void;
+  onNavigateToLeaderboard?: () => void;
 }
 
 const ASSETS: AssetInfo[] = [
@@ -57,7 +58,8 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
   trades,
   onTradeOpened,
   darkMode,
-  onUserUpdated
+  onUserUpdated,
+  onNavigateToLeaderboard
 }) => {
   const [selectedAsset, setSelectedAsset] = useState<AssetInfo>(ASSETS[0]);
   const [investmentAmount, setInvestmentAmount] = useState<number>(10);
@@ -120,7 +122,7 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
     const interval = setInterval(() => {
       fetchPrices();
       setCurrentTime(Date.now());
-    }, 1000);
+    }, 500);
     return () => clearInterval(interval);
   }, []);
 
@@ -407,10 +409,13 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
         </div>
 
         {/* Sidebar Rolling Top Winners Leaderboard Ticker */}
-        <div className="bg-[#0b0e14] border border-slate-800 rounded-lg p-3 flex-shrink-0 font-sans shadow-lg relative overflow-hidden">
+        <div 
+          onClick={onNavigateToLeaderboard}
+          className="bg-[#0b0e14] border border-slate-800 hover:border-amber-500/50 rounded-lg p-3 flex-shrink-0 font-sans shadow-lg relative overflow-hidden cursor-pointer transition-all group"
+        >
           <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 blur-xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
           <div className="flex items-center justify-between mb-3 relative z-10">
-            <div className="flex items-center gap-1.5 text-[10px] font-black text-white uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-white uppercase tracking-wider group-hover:text-amber-400 transition-colors">
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
               <span>Top Winners</span>
             </div>
@@ -433,6 +438,11 @@ export const TradingDashboard: React.FC<TradingDashboardProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+          
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-amber-400 font-bold group-hover:text-amber-300">
+            <span>View All Top 20 Winners</span>
+            <span>→</span>
           </div>
         </div>
 
