@@ -1,28 +1,44 @@
 {
-  "entities": {
-    "User": {
-      "title": "User",
-      "description": "User profile data",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "actual_balance": { "type": "number" },
-        "displayed_balance": { "type": "number" },
-        "demo_balance": { "type": "number" },
-        "wallet_address": { "type": "string" },
-        "status": { "type": "string" },
-        "role": { "type": "string" },
-        "risk_acknowledged": { "type": "boolean" }
-      },
-      "required": ["id", "email"]
+  "collections": [
+    {
+      "name": "users",
+      "description": "Store user accounts and balances",
+      "securityRules": {
+        "read": "if request.auth != null && (request.auth.uid == resource.id || request.auth.token.admin == true);",
+        "write": "if request.auth != null && request.auth.token.admin == true;"
+      }
+    },
+    {
+      "name": "trades",
+      "description": "Store trade history",
+      "securityRules": {
+        "read": "if request.auth != null && (request.auth.uid == resource.data.user_id || request.auth.token.admin == true);",
+        "write": "if request.auth != null && request.auth.token.admin == true;"
+      }
+    },
+    {
+      "name": "deposits",
+      "description": "Store deposit requests",
+      "securityRules": {
+        "read": "if request.auth != null && (request.auth.uid == resource.data.user_id || request.auth.token.admin == true);",
+        "write": "if request.auth != null && (request.auth.uid == request.resource.data.user_id || request.auth.token.admin == true);"
+      }
+    },
+    {
+      "name": "withdrawals",
+      "description": "Store withdrawal requests",
+      "securityRules": {
+        "read": "if request.auth != null && (request.auth.uid == resource.data.user_id || request.auth.token.admin == true);",
+        "write": "if request.auth != null && (request.auth.uid == request.resource.data.user_id || request.auth.token.admin == true);"
+      }
+    },
+    {
+      "name": "settings",
+      "description": "Store global platform settings",
+      "securityRules": {
+        "read": "if true;",
+        "write": "if request.auth != null && request.auth.token.admin == true;"
+      }
     }
-  },
-  "firestore": {
-    "users/{userId}": {
-      "schema": { "$ref": "#/entities/User" },
-      "description": "User profiles"
-    }
-  }
+  ]
 }
