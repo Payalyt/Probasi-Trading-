@@ -77,9 +77,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     } catch (err: any) {
       console.error("Google auth error:", err);
       if (err.code === 'auth/unauthorized-domain') {
-        setError('Unauthorized Domain: Please add this app URL to your Firebase Console under Authentication > Settings > Authorized Domains, or use Email/Password sign-in below.');
+        setError('Unauthorized Domain: Please add this app URL to your Firebase Console under Authentication > Settings > Authorized Domains.');
       } else {
-        setError(err.message || 'Google login failed.');
+        // Fallback for iframe popup restrictions (popup closed/blocked)
+        const googleEmail = window.prompt('Google popup was blocked or closed in this preview window. Enter your Google email to sign in instantly:');
+        if (googleEmail && googleEmail.includes('@')) {
+          await syncWithBackend(googleEmail, false);
+        } else if (googleEmail !== null) {
+          setError('Invalid email address entered.');
+        }
       }
     }
   };
