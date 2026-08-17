@@ -11,7 +11,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 if (getApps().length === 0) {
   initializeApp({
     credential: applicationDefault(),
-    projectId: process.env.FIREBASE_PROJECT_ID || 'vo3-483404'
+    projectId: process.env.FIREBASE_PROJECT_ID || 'probasi-trding'
   });
 }
 const db = getFirestore('ai-studio-tradingplatforms-22909dd2-7f49-4673-87b9-00ca7e6e6d68');
