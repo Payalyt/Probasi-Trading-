@@ -522,9 +522,13 @@ export const AdminPanel: React.FC = () => {
         setShowAddUserModal(false);
         setNewUserForm({ name: '', email: '', actual_balance: 100, demo_balance: 10000, role: 'user' });
         fetchAllData();
+      } else {
+        const errorData = await res.json();
+        showNotification(`Error: ${errorData.error || 'Failed to create user'}`);
       }
     } catch (e) {
       console.error(e);
+      showNotification('An unexpected error occurred');
     }
   };
 
