@@ -15,19 +15,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const syncWithBackend = async (userEmail: string) => {
+  const syncWithBackend = async (userEmail: string, isNewSignup: boolean = false) => {
     const isAdmin = userEmail.toLowerCase() === 'payalyt6279@gmail.com' || userEmail.toLowerCase() === 'admin@probashi.com';
     try {
-      const res = await fetch('/api/login', {
+      const endpoint = isNewSignup ? '/api/signup' : '/api/login';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail })
+        body: JSON.stringify({ email: userEmail, password: password || 'user123' })
       });
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
           onLogin(data.user);
           return;
+        }
+      } else if (isNewSignup) {
+        // If signup failed (e.g. user already exists), try logging in instead
+        const loginRes = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail })
+        });
+        if (loginRes.ok) {
+          const loginData = await loginRes.json();
+          if (loginData.user) {
+            onLogin(loginData.user);
+            return;
+          }
         }
       }
     } catch (e) {
@@ -53,7 +68,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user.email) {
-        await syncWithBackend(result.user.email);
+        await syncWithBackend(result.user.email, false);
       }
     } catch (err: any) {
       console.error(err);
@@ -69,16 +84,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       let result;
       if (isSignUp) {
         result = await createUserWithEmailAndPassword(auth, email, password);
+        if (result.user.email) {
+          await syncWithBackend(result.user.email, true);
+        }
       } else {
         result = await signInWithEmailAndPassword(auth, email, password);
-      }
-      
-      if (result.user.email) {
-        await syncWithBackend(result.user.email);
+        if (result.user.email) {
+          await syncWithBackend(result.user.email, false);
+        }
       }
     } catch (err: any) {
       console.error("Auth failed", err);
-      // Simplify error messages for UX
       if (err.code === 'auth/email-already-in-use') {
         setError('Email is already registered. Please sign in.');
       } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
