@@ -16,19 +16,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
 
   const syncWithBackend = async (userEmail: string) => {
-    // Backend API sync is currently disabled to avoid 404 errors.
-    // Proceeding directly to success using Firebase auth details.
+    const isAdmin = userEmail.toLowerCase() === 'payalyt6279@gmail.com' || userEmail.toLowerCase() === 'admin@probashi.com';
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          onLogin(data.user);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Backend sync notice (using local fallback):", e);
+    }
+
     onLogin({ 
       email: userEmail, 
       id: userEmail,
       name: userEmail.split('@')[0],
-      actual_balance: 0,
-      displayed_balance: 0,
-      demo_balance: 1000,
+      actual_balance: isAdmin ? 99999 : 0,
+      displayed_balance: isAdmin ? 99999 : 0,
+      demo_balance: 10000,
       wallet_address: '',
       status: 'active',
-      role: 'user',
-      risk_acknowledged: false
+      role: isAdmin ? 'admin' : 'user',
+      risk_acknowledged: true
     });
   };
 

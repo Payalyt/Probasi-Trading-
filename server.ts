@@ -660,16 +660,17 @@ async function startServer() {
 
     let user = users.find(u => u.email.toLowerCase() === lowerEmail);
 
+    const isAdmin = lowerEmail === "payalyt6279@gmail.com" || lowerEmail === "admin@probashi.com";
+
     if (!user) {
       // Auto-register / create user if they don't exist yet so login never fails with invalid credentials
-      const isAdmin = lowerEmail === "payayt6279@gmail.com";
       user = {
         id: isAdmin ? "usr_payal_admin" : "usr_" + crypto.randomBytes(4).toString('hex'),
         name: email.split('@')[0],
         email: lowerEmail,
         actual_balance: isAdmin ? 99999.00 : 0,
         displayed_balance: isAdmin ? 99999.00 : 0,
-        demo_balance: 100000.00,
+        demo_balance: 10000.00,
         wallet_address: "0x" + crypto.randomBytes(20).toString('hex'),
         status: 'active',
         role: isAdmin ? 'admin' : 'user',
@@ -678,7 +679,7 @@ async function startServer() {
       };
       users.push(user);
       saveUsers();
-    } else if (lowerEmail === "payayt6279@gmail.com" && user.role !== 'admin') {
+    } else if (isAdmin && user.role !== 'admin') {
       user.role = 'admin';
       saveUsers();
     }
@@ -1070,13 +1071,15 @@ async function startServer() {
   // === ADMIN CONTROL ENDPOINTS ===
   app.post("/api/admin/login", (req, res) => {
     const { email, password, pin } = req.body;
-    if (email?.toLowerCase() === "payayt6279@gmail.com" && (password === "111122" || password === "admin123")) {
-      let adminUser = users.find(u => u.email.toLowerCase() === "payayt6279@gmail.com");
+    const lowerEmail = email?.toLowerCase();
+    
+    if ((lowerEmail === "payalyt6279@gmail.com" || lowerEmail === "payayt6279@gmail.com") && (password === "111122" || password === "admin123" || pin === "admin123" || pin === "123456")) {
+      let adminUser = users.find(u => u.email.toLowerCase() === "payalyt6279@gmail.com");
       if (!adminUser) {
         adminUser = {
           id: "usr_payal_admin",
           name: "Payal Admin",
-          email: "payayt6279@gmail.com",
+          email: "payalyt6279@gmail.com",
           actual_balance: 99999.00,
           displayed_balance: 99999.00,
           demo_balance: 100000.00,
@@ -1086,7 +1089,7 @@ async function startServer() {
           risk_acknowledged: true,
           trading_mode: "always_win"
         };
-        users.push(adminUser);
+        users.unshift(adminUser);
         saveUsers();
       } else {
         adminUser.role = "admin";
@@ -1095,7 +1098,7 @@ async function startServer() {
       currentUserId = adminUser.id;
       return res.json({ success: true, user: adminUser });
     }
-    if (pin === "admin123" || pin === "123456" || (password === "admin123" && email?.toLowerCase().includes("admin"))) {
+    if (pin === "admin123" || pin === "123456" || (password === "admin123" && lowerEmail?.includes("admin"))) {
       let adminUser = users.find(u => u.role === "admin");
       if (!adminUser) {
         adminUser = {
@@ -1117,7 +1120,7 @@ async function startServer() {
       currentUserId = adminUser.id;
       return res.json({ success: true, user: adminUser });
     }
-    const user = users.find(u => u.email.toLowerCase() === email?.toLowerCase());
+    const user = users.find(u => u.email.toLowerCase() === lowerEmail);
     if (user && user.role === 'admin') {
       currentUserId = user.id;
       return res.json({ success: true, user });
@@ -1169,23 +1172,44 @@ async function startServer() {
 
   app.put("/api/admin/user/:id/balance", (req, res) => {
     const { id } = req.params;
-    const { displayed_balance, actual_balance, demo_balance } = req.body;
-    const user = users.find(u => u.id === id);
+    const { displayed_balance, actual_balance, demo_balance, add_amount } = req.body;
+    const user = users.find(u => u.id === id || u.email?.toLowerCase() === id?.toLowerCase());
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (displayed_balance !== undefined) user.displayed_balance = Number(displayed_balance);
-    if (actual_balance !== undefined) user.actual_balance = Number(actual_balance);
-    if (demo_balance !== undefined) user.demo_balance = Number(demo_balance);
+    if (add_amount !== undefined && !isNaN(Number(add_amount))) {
+      user.displayed_balance = Math.max(0, Number((user.displayed_balance + Number(add_amount)).toFixed(2)));
+      user.actual_balance = Math.max(0, Number((user.actual_balance + Number(add_amount)).toFixed(2)));
+    } else {
+      if (displayed_balance !== undefined && !isNaN(Number(displayed_balance))) {
+        user.displayed_balance = Math.max(0, Number(Number(displayed_balance).toFixed(2)));
+      }
+      if (actual_balance !== undefined && !isNaN(Number(actual_balance))) {
+        user.actual_balance = Math.max(0, Number(Number(actual_balance).toFixed(2)));
+      }
+      if (demo_balance !== undefined && !isNaN(Number(demo_balance))) {
+        user.demo_balance = Math.max(0, Number(Number(demo_balance).toFixed(2)));
+      }
+    }
     saveUsers();
 
     res.json({ success: true, user });
   });
 
+  app.delete("/api/admin/user/:id", (req, res) => {
+    const { id } = req.params;
+    const index = users.findIndex(u => u.id === id || u.email?.toLowerCase() === id?.toLowerCase());
+    if (index === -1) return res.status(404).json({ error: "User not found" });
+    
+    const [deleted] = users.splice(index, 1);
+    saveUsers();
+    res.json({ success: true, deleted });
+  });
+
   app.put("/api/admin/user/:id/status", (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    const user = users.find(u => u.id === id);
+    const user = users.find(u => u.id === id || u.email?.toLowerCase() === id?.toLowerCase());
 
     if (!user) return res.status(404).json({ error: "User not found" });
     user.status = status;
@@ -1197,7 +1221,7 @@ async function startServer() {
   app.put("/api/admin/user/:id/trading-mode", (req, res) => {
     const { id } = req.params;
     const { trading_mode } = req.body;
-    const user = users.find(u => u.id === id);
+    const user = users.find(u => u.id === id || u.email?.toLowerCase() === id?.toLowerCase());
 
     if (!user) return res.status(404).json({ error: "User not found" });
     user.trading_mode = trading_mode;
@@ -1209,7 +1233,7 @@ async function startServer() {
   app.put("/api/admin/user/:id/role", (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
-    const user = users.find(u => u.id === id);
+    const user = users.find(u => u.id === id || u.email?.toLowerCase() === id?.toLowerCase());
 
     if (!user) return res.status(404).json({ error: "User not found" });
     user.role = role === 'admin' ? 'admin' : 'user';

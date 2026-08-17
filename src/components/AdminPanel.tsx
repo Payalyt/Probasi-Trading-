@@ -398,19 +398,76 @@ export const AdminPanel: React.FC = () => {
   // --- USER CONTROLS ---
   const handleSaveUserBalance = async () => {
     if (!editingUserBalance) return;
+    const { user, live, demo } = editingUserBalance;
+
+    // Optimistic UI update
+    setUsers(prev => prev.map(u => u.id === user.id ? {
+      ...u,
+      displayed_balance: live,
+      actual_balance: live,
+      demo_balance: demo
+    } : u));
+
     try {
-      const res = await fetch(`/api/admin/user/${editingUserBalance.user.id}/balance`, {
+      const res = await fetch(`/api/admin/user/${user.id}/balance`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          displayed_balance: editingUserBalance.live,
-          actual_balance: editingUserBalance.live,
-          demo_balance: editingUserBalance.demo
+          displayed_balance: live,
+          actual_balance: live,
+          demo_balance: demo
         })
       });
       if (res.ok) {
-        showNotification(`Balance updated for ${editingUserBalance.user.name}`);
+        showNotification(`✅ Balance updated successfully for ${user.name || user.email}!`);
         setEditingUserBalance(null);
+        fetchAllData();
+      } else {
+        const err = await res.json();
+        showNotification(`⚠️ Failed: ${err.error || 'Server error'}`);
+        fetchAllData();
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('⚠️ Network error updating balance');
+      fetchAllData();
+    }
+  };
+
+  const handleQuickAddBalance = async (user: User, amount: number) => {
+    // Optimistic UI update
+    setUsers(prev => prev.map(u => u.id === user.id ? {
+      ...u,
+      displayed_balance: Number((u.displayed_balance + amount).toFixed(2)),
+      actual_balance: Number((u.actual_balance + amount).toFixed(2))
+    } : u));
+
+    try {
+      const res = await fetch(`/api/admin/user/${user.id}/balance`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add_amount: amount })
+      });
+      if (res.ok) {
+        showNotification(`✅ Added +$${amount} to ${user.name || user.email}`);
+        fetchAllData();
+      } else {
+        showNotification(`⚠️ Failed to add funds`);
+        fetchAllData();
+      }
+    } catch (e) {
+      console.error(e);
+      fetchAllData();
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to delete user account "${userName}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/user/${userId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showNotification(`🗑️ User deleted: ${userName}`);
+        setUsers(prev => prev.filter(u => u.id !== userId));
         fetchAllData();
       }
     } catch (e) {
@@ -1670,7 +1727,7 @@ export const AdminPanel: React.FC = () => {
                 <span>Users Accounts & Balances Manager</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Add balances, ban/unban users, configure targeted trading bias (Normal, 100% Always Win, 100% Always Loss).
+                Manage user balances, add funds instantly, ban/unban users, configure targeted trading bias (Normal, 100% Always Win, 100% Always Loss).
               </p>
             </div>
 
@@ -1700,6 +1757,7 @@ export const AdminPanel: React.FC = () => {
                   <th className="p-3">Name / Email</th>
                   <th className="p-3">Live Balance ($)</th>
                   <th className="p-3">Demo Balance ($)</th>
+                  <th className="p-3">Quick Add Funds</th>
                   <th className="p-3">Trading Bias</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Role</th>
@@ -1707,63 +1765,108 @@ export const AdminPanel: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#131824]/60 transition-colors">
-                    <td className="p-3 font-mono text-slate-400">{u.id}</td>
-                    <td className="p-3">
-                      <div className="font-bold text-white">{u.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
-                    </td>
-                    <td className="p-3 font-mono font-bold text-emerald-400 text-sm">
-                      ${u.displayed_balance.toFixed(2)}
-                    </td>
-                    <td className="p-3 font-mono text-amber-400">
-                      ${u.demo_balance.toFixed(2)}
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => handleToggleUserTradingMode(u.id, u.trading_mode)}
-                        className={`px-2.5 py-1 rounded text-[10px] font-black uppercase transition-all ${
-                          u.trading_mode === 'always_win'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
-                            : u.trading_mode === 'always_loss'
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500'
-                            : 'bg-slate-800 text-slate-300 border border-slate-700'
-                        }`}
-                        title="Click to cycle: Normal -> Always Win -> Always Loss"
-                      >
-                        {u.trading_mode ? u.trading_mode.replace('_', ' ') : 'NORMAL'}
-                      </button>
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => handleToggleUserStatus(u.id, u.status)}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          u.status === 'active'
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                            : 'bg-rose-950 text-rose-400 border border-rose-800'
-                        }`}
-                      >
-                        {u.status}
-                      </button>
-                    </td>
-                    <td className="p-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        u.role === 'admin' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300'
-                      }`}>
-                        {u.role.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => setEditingUserBalance({ user: u, live: u.displayed_balance, demo: u.demo_balance })}
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-lg text-xs border border-slate-700 transition-all"
-                      >
-                        Edit Balance
-                      </button>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-slate-500">
+                      No users found. Create one using the "+ Create User" button above.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-[#131824]/60 transition-colors">
+                      <td className="p-3 font-mono text-slate-400">{u.id}</td>
+                      <td className="p-3">
+                        <div className="font-bold text-white">{u.name || 'Trader'}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                      </td>
+                      <td className="p-3 font-mono font-bold text-emerald-400 text-sm">
+                        ${(u.displayed_balance ?? u.actual_balance ?? 0).toFixed(2)}
+                      </td>
+                      <td className="p-3 font-mono text-amber-400">
+                        ${(u.demo_balance ?? 10000).toFixed(2)}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleQuickAddBalance(u, 10)}
+                            className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/80 px-2 py-1 rounded text-[10px] font-bold transition-all"
+                            title="Add +$10"
+                          >
+                            +$10
+                          </button>
+                          <button
+                            onClick={() => handleQuickAddBalance(u, 50)}
+                            className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/80 px-2 py-1 rounded text-[10px] font-bold transition-all"
+                            title="Add +$50"
+                          >
+                            +$50
+                          </button>
+                          <button
+                            onClick={() => handleQuickAddBalance(u, 100)}
+                            className="bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/80 px-2 py-1 rounded text-[10px] font-bold transition-all"
+                            title="Add +$100"
+                          >
+                            +$100
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => handleToggleUserTradingMode(u.id, u.trading_mode)}
+                          className={`px-2.5 py-1 rounded text-[10px] font-black uppercase transition-all ${
+                            u.trading_mode === 'always_win'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
+                              : u.trading_mode === 'always_loss'
+                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500'
+                              : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          }`}
+                          title="Click to cycle: Normal -> Always Win -> Always Loss"
+                        >
+                          {u.trading_mode ? u.trading_mode.replace('_', ' ') : 'NORMAL'}
+                        </button>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => handleToggleUserStatus(u.id, u.status)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            u.status === 'active'
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                              : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          }`}
+                        >
+                          {u.status}
+                        </button>
+                      </td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          u.role === 'admin' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300'
+                        }`}>
+                          {u.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditingUserBalance({ user: u, live: u.displayed_balance ?? u.actual_balance ?? 0, demo: u.demo_balance ?? 10000 })}
+                            className="flex items-center gap-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white font-bold px-3 py-1.5 rounded-lg text-xs border border-indigo-500/30 hover:border-indigo-600 transition-all"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit Balance</span>
+                          </button>
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name || u.email)}
+                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition-all"
+                              title="Delete user account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1845,53 +1948,109 @@ export const AdminPanel: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#0e121b] border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Adjust User Balance</h3>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Adjust User Balance</h3>
+              </div>
               <button onClick={() => setEditingUserBalance(null)} className="text-slate-400 hover:text-white">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-[#131824] p-3.5 rounded-xl border border-slate-800">
-              <div className="font-bold text-white">{editingUserBalance.user.name}</div>
-              <div className="text-xs text-slate-400 font-mono">{editingUserBalance.user.email}</div>
+            <div className="bg-[#131824] p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-white text-sm">{editingUserBalance.user.name || 'Trader'}</div>
+                <div className="text-xs text-slate-400 font-mono">{editingUserBalance.user.email}</div>
+              </div>
+              <span className="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded">
+                {editingUserBalance.user.role}
+              </span>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Live Real Balance ($ USD)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={editingUserBalance.live}
-                  onChange={(e) => setEditingUserBalance({ ...editingUserBalance, live: Number(e.target.value) })}
-                  className="w-full bg-[#0a0d14] border border-slate-700 rounded-xl p-3 text-emerald-400 font-mono font-bold text-sm outline-none"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-emerald-400 uppercase">Live Real Balance ($ USD)</label>
+                  <span className="text-[10px] text-slate-500 font-mono">Current: ${(editingUserBalance.user.displayed_balance ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-emerald-400 font-bold text-base">$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editingUserBalance.live}
+                    onChange={(e) => setEditingUserBalance({ ...editingUserBalance, live: Number(e.target.value) })}
+                    className="w-full pl-8 pr-4 py-2.5 bg-[#0a0d14] border border-slate-700 focus:border-emerald-500 rounded-xl text-emerald-400 font-mono font-bold text-base outline-none transition-all"
+                  />
+                </div>
+
+                {/* Quick Add Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-500 mr-1 font-semibold">Quick Add:</span>
+                  {[10, 50, 100, 500, 1000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setEditingUserBalance({ ...editingUserBalance, live: Number((editingUserBalance.live + amt).toFixed(2)) })}
+                      className="bg-slate-800/80 hover:bg-emerald-950 text-slate-300 hover:text-emerald-400 border border-slate-700 hover:border-emerald-700/60 px-2 py-1 rounded text-[10px] font-bold font-mono transition-all"
+                    >
+                      +${amt}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditingUserBalance({ ...editingUserBalance, live: 0 })}
+                    className="bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 px-2 py-1 rounded text-[10px] font-bold transition-all ml-auto"
+                  >
+                    Reset 0
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Demo Practice Balance ($ USD)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={editingUserBalance.demo}
-                  onChange={(e) => setEditingUserBalance({ ...editingUserBalance, demo: Number(e.target.value) })}
-                  className="w-full bg-[#0a0d14] border border-slate-700 rounded-xl p-3 text-amber-400 font-mono font-bold text-sm outline-none"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-amber-400 uppercase">Demo Practice Balance ($ USD)</label>
+                  <span className="text-[10px] text-slate-500 font-mono">Current: ${(editingUserBalance.user.demo_balance ?? 10000).toFixed(2)}</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-amber-400 font-bold text-base">$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editingUserBalance.demo}
+                    onChange={(e) => setEditingUserBalance({ ...editingUserBalance, demo: Number(e.target.value) })}
+                    className="w-full pl-8 pr-4 py-2.5 bg-[#0a0d14] border border-slate-700 focus:border-amber-500 rounded-xl text-amber-400 font-mono font-bold text-base outline-none transition-all"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-500 mr-1 font-semibold">Presets:</span>
+                  {[1000, 5000, 10000, 50000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setEditingUserBalance({ ...editingUserBalance, demo: amt })}
+                      className="bg-slate-800/80 hover:bg-amber-950 text-slate-300 hover:text-amber-400 border border-slate-700 hover:border-amber-700/60 px-2 py-1 rounded text-[10px] font-bold font-mono transition-all"
+                    >
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setEditingUserBalance(null)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs"
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveUserBalance}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/30"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5"
               >
-                Save Balance
+                <Check className="w-4 h-4" />
+                <span>Save Balance</span>
               </button>
             </div>
           </div>
