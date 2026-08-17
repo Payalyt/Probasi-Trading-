@@ -20,7 +20,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     // Proceeding directly to success using Firebase auth details.
     onLogin({ 
       email: userEmail, 
-      id: userEmail // Ensures we always pass a valid user object
+      id: userEmail,
+      name: userEmail.split('@')[0],
+      actual_balance: 0,
+      displayed_balance: 0,
+      demo_balance: 1000,
+      wallet_address: '',
+      status: 'active',
+      role: 'user',
+      risk_acknowledged: false
     });
   };
 
