@@ -63,9 +63,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const handleGoogleLogin = async () => {
     setError('');
-    // For now, mock Google login as a simple email submission if needed
-    // or just inform user that it's disabled.
-    setError('Google login is currently disabled.');
+    try {
+      const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+      const { auth } = await import('../lib/firebase');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      if (user && user.email) {
+        await syncWithBackend(user.email, false);
+      } else {
+        setError('Google authentication failed: No email returned.');
+      }
+    } catch (err: any) {
+      console.error("Google auth error:", err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Unauthorized Domain: Please add this app URL to your Firebase Console under Authentication > Settings > Authorized Domains, or use Email/Password sign-in below.');
+      } else {
+        setError(err.message || 'Google login failed.');
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
