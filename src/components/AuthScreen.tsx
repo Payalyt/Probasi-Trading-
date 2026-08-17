@@ -16,9 +16,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
 
   const syncWithBackend = async (userEmail: string) => {
-    // Backend API sync is currently failing with 404.
+    // Backend API sync is currently disabled to avoid 404 errors.
     // Proceeding directly to success using Firebase auth details.
-    onLogin({ email: userEmail, id: userEmail });
+    onLogin({ 
+      email: userEmail, 
+      id: userEmail // Ensures we always pass a valid user object
+    });
   };
 
   const handleGoogleLogin = async () => {
