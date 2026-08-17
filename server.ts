@@ -705,6 +705,7 @@ async function startServer() {
       risk_acknowledged: false
     };
     users.push(newUser);
+    saveUsers();
     currentUserId = newUser.id;
     res.json({ success: true, user: newUser });
   });
