@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Trade, Deposit, Withdrawal, CustomGateway, PlatformSettings, OutcomeControl } from '../types';
 import { db } from '../lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import {
   ShieldAlert,
   Users,
@@ -191,9 +191,86 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-    // Live polling ONLY updates pending trades, deposits, and withdrawals without resetting form inputs
-    const interval = setInterval(fetchLiveTransactions, 3000);
-    return () => clearInterval(interval);
+
+    // 🔴 Real-time Firestore Live Listeners for instant Admin Panel synchronization
+    const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const fsUsers: User[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data && data.email) {
+          fsUsers.push(data as User);
+        }
+      });
+      if (fsUsers.length > 0) {
+        setUsers(prev => {
+          const userMap = new Map<string, User>();
+          prev.forEach(u => userMap.set(u.email.toLowerCase(), u));
+          fsUsers.forEach(u => {
+            const key = u.email.toLowerCase();
+            userMap.set(key, { ...userMap.get(key), ...u });
+          });
+          return Array.from(userMap.values());
+        });
+      }
+    }, (err) => console.warn("Users real-time listener:", err));
+
+    const unsubscribeTrades = onSnapshot(collection(db, "trades"), (snapshot) => {
+      const fsTrades: Trade[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data && data.id) fsTrades.push(data as Trade);
+      });
+      if (fsTrades.length > 0) {
+        setTrades(prev => {
+          const map = new Map<string, Trade>();
+          prev.forEach(t => map.set(t.id, t));
+          fsTrades.forEach(t => map.set(t.id, t));
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => console.warn("Trades real-time listener:", err));
+
+    const unsubscribeDeposits = onSnapshot(collection(db, "deposits"), (snapshot) => {
+      const fsDeposits: Deposit[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data && data.id) fsDeposits.push(data as Deposit);
+      });
+      if (fsDeposits.length > 0) {
+        setDeposits(prev => {
+          const map = new Map<string, Deposit>();
+          prev.forEach(d => map.set(d.id, d));
+          fsDeposits.forEach(d => map.set(d.id, d));
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => console.warn("Deposits real-time listener:", err));
+
+    const unsubscribeWithdrawals = onSnapshot(collection(db, "withdrawals"), (snapshot) => {
+      const fsWithdrawals: Withdrawal[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data && data.id) fsWithdrawals.push(data as Withdrawal);
+      });
+      if (fsWithdrawals.length > 0) {
+        setWithdrawals(prev => {
+          const map = new Map<string, Withdrawal>();
+          prev.forEach(w => map.set(w.id, w));
+          fsWithdrawals.forEach(w => map.set(w.id, w));
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => console.warn("Withdrawals real-time listener:", err));
+
+    // Live polling as secondary background fallback
+    const interval = setInterval(fetchLiveTransactions, 2000);
+    return () => {
+      clearInterval(interval);
+      unsubscribeUsers();
+      unsubscribeTrades();
+      unsubscribeDeposits();
+      unsubscribeWithdrawals();
+    };
   }, []);
 
   // --- TRADES CONTROL ---
@@ -490,6 +567,7 @@ export const AdminPanel: React.FC = () => {
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to delete user account "${userName}"?`)) return;
     try {
+      await deleteDoc(doc(db, "users", userId)).catch(() => {});
       const res = await fetch(`/api/admin/user/${userId}`, { method: 'DELETE' });
       if (res.ok) {
         showNotification(`🗑️ User deleted: ${userName}`);

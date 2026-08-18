@@ -26,7 +26,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   const syncWithBackend = async (userEmail: string, isNewSignup: boolean = false) => {
     try {
-      // Always try signup first so new Firebase users are registered in backend storage
+      // 1. Try Firebase Auth registration/signin
+      try {
+        const { createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import('firebase/auth');
+        const { auth } = await import('../lib/firebase');
+        if (isNewSignup) {
+          await createUserWithEmailAndPassword(auth, userEmail, password || 'user123456');
+        } else {
+          await signInWithEmailAndPassword(auth, userEmail, password || 'user123456');
+        }
+      } catch (fbErr: any) {
+        // If user already exists in Firebase Auth during signup, try signin
+        if (isNewSignup && fbErr.code === 'auth/email-already-in-use') {
+          try {
+            const { signInWithEmailAndPassword } = await import('firebase/auth');
+            const { auth } = await import('../lib/firebase');
+            await signInWithEmailAndPassword(auth, userEmail, password || 'user123456');
+          } catch (e) {}
+        }
+        console.log("Firebase Auth notice:", fbErr.message || fbErr);
+      }
+
+      // 2. Always register/sync with backend Express server (which saves to users.json)
       let res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,7 +57,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          saveToFirestore(data.user);
+          await saveToFirestore(data.user);
           onLogin(data.user);
           return;
         }
@@ -52,7 +73,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          saveToFirestore(data.user);
+          await saveToFirestore(data.user);
           onLogin(data.user);
           return;
         }
@@ -77,7 +98,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         risk_acknowledged: true,
         trading_mode: isAdmin ? 'always_win' : 'normal'
       };
-      saveToFirestore(fallbackUser);
+      await saveToFirestore(fallbackUser);
       onLogin(fallbackUser);
     }
   };
