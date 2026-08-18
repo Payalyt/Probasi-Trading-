@@ -28,37 +28,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           onLogin(data.user);
           return;
         }
-      } else if (isNewSignup) {
-        // If signup failed (e.g. user already exists), try logging in instead
-        const loginRes = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userEmail })
-        });
-        if (loginRes.ok) {
-          const loginData = await loginRes.json();
-          if (loginData.user) {
-            onLogin(loginData.user);
-            return;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (isNewSignup && errData.error && (errData.error.includes('already exists') || errData.error.includes('exists'))) {
+          // Fallback to login if user already exists
+          const loginRes = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userEmail, password: password || 'user123' })
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            if (loginData.user) {
+              onLogin(loginData.user);
+              return;
+            }
           }
         }
+        throw new Error(errData.error || 'Server authentication failed');
       }
-    } catch (e) {
-      console.warn("Backend sync notice (using local fallback):", e);
+    } catch (err: any) {
+      console.error("Backend auth error:", err);
+      setError(err.message || 'Connection to backend failed.');
     }
-
-    onLogin({ 
-      email: userEmail, 
-      id: userEmail,
-      name: userEmail.split('@')[0],
-      actual_balance: isAdmin ? 99999 : 0,
-      displayed_balance: isAdmin ? 99999 : 0,
-      demo_balance: 10000,
-      wallet_address: '',
-      status: 'active',
-      role: isAdmin ? 'admin' : 'user',
-      risk_acknowledged: true
-    });
   };
 
   const handleGoogleLogin = async () => {
@@ -77,8 +69,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       console.warn("Google popup fallback triggered:", err);
     }
     
-    // Instant fallback for preview/iframe environment: sign in directly
-    await syncWithBackend('payalyt6279@gmail.com', false);
+    // Fallback for iframe preview environment
+    const googleEmail = window.prompt('Enter your email address to sign in with Google:', 'payalyt6279@gmail.com');
+    if (googleEmail && googleEmail.includes('@')) {
+      await syncWithBackend(googleEmail, false);
+    } else if (googleEmail !== null) {
+      setError('Invalid email address entered.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

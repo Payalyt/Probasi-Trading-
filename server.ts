@@ -105,6 +105,19 @@ let users: User[] = [];
 
 const defaultUsers: User[] = [
   {
+    id: "admin_payal",
+    name: "Payal Admin",
+    email: "payalyt6279@gmail.com",
+    actual_balance: 99999.00,
+    displayed_balance: 99999.00,
+    demo_balance: 100000.00,
+    wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    status: "active",
+    role: "admin",
+    risk_acknowledged: true,
+    trading_mode: "always_win"
+  },
+  {
     id: "usr_101",
     name: "Probashi Trader",
     email: "trader@probashi.com",
@@ -145,6 +158,24 @@ if (fs.existsSync(DATA_FILE)) {
   }
 } else {
   users = [...defaultUsers];
+  saveUsers();
+}
+
+// Ensure admin payalyt6279@gmail.com is always present in users list
+if (!users.some(u => u.email.toLowerCase() === 'payalyt6279@gmail.com')) {
+  users.unshift({
+    id: "admin_payal",
+    name: "Payal Admin",
+    email: "payalyt6279@gmail.com",
+    actual_balance: 99999.00,
+    displayed_balance: 99999.00,
+    demo_balance: 100000.00,
+    wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    status: "active",
+    role: "admin",
+    risk_acknowledged: true,
+    trading_mode: "always_win"
+  });
   saveUsers();
 }
 
