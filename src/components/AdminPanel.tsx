@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Trade, Deposit, Withdrawal, CustomGateway, PlatformSettings, OutcomeControl } from '../types';
+import { db } from '../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import {
   ShieldAlert,
   Users,
@@ -125,7 +127,31 @@ export const AdminPanel: React.FC = () => {
         fetch('/api/admin/market-configs')
       ]);
 
-      if (uRes.ok) setUsers(await uRes.json());
+      if (uRes.ok) {
+        let apiUsers: User[] = await uRes.json();
+        try {
+          const querySnapshot = await getDocs(collection(db, "users"));
+          const firestoreUsers: User[] = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data && data.email) {
+              firestoreUsers.push(data as User);
+            }
+          });
+          if (firestoreUsers.length > 0) {
+            const userMap = new Map<string, User>();
+            apiUsers.forEach(u => userMap.set(u.email.toLowerCase(), u));
+            firestoreUsers.forEach(u => {
+              const key = u.email.toLowerCase();
+              userMap.set(key, { ...userMap.get(key), ...u });
+            });
+            apiUsers = Array.from(userMap.values());
+          }
+        } catch (fsErr) {
+          console.warn("Firestore users query note:", fsErr);
+        }
+        setUsers(apiUsers);
+      }
       if (tRes.ok) setTrades(await tRes.json());
       if (dRes.ok) setDeposits(await dRes.json());
       if (wRes.ok) setWithdrawals(await wRes.json());

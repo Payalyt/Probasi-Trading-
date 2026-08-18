@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, Lock, ShieldCheck, Sparkles, UserCheck } from 'lucide-react';
 import { User } from '../types';
+import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -14,6 +16,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleEmailInput, setGoogleEmailInput] = useState('payalyt6279@gmail.com');
 
+  const saveToFirestore = async (u: User) => {
+    try {
+      await setDoc(doc(db, "users", u.id), u, { merge: true });
+    } catch (e) {
+      console.warn("Firestore user sync note:", e);
+    }
+  };
+
   const syncWithBackend = async (userEmail: string, isNewSignup: boolean = false) => {
     try {
       // Always try signup first so new Firebase users are registered in backend storage
@@ -26,6 +36,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
+          saveToFirestore(data.user);
           onLogin(data.user);
           return;
         }
@@ -41,6 +52,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
+          saveToFirestore(data.user);
           onLogin(data.user);
           return;
         }
@@ -65,6 +77,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         risk_acknowledged: true,
         trading_mode: isAdmin ? 'always_win' : 'normal'
       };
+      saveToFirestore(fallbackUser);
       onLogin(fallbackUser);
     }
   };
