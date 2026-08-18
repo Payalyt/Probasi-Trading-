@@ -13,8 +13,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('payalyt6279@gmail.com');
 
   const saveToFirestore = async (u: User) => {
     try {
@@ -117,19 +115,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       }
     } catch (err: any) {
       console.warn("Google popup fallback triggered:", err);
-    }
-    
-    // Show smooth modal for Google Email entry if popup is blocked
-    setShowGoogleModal(true);
-  };
-
-  const handleGoogleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (googleEmailInput && googleEmailInput.includes('@')) {
-      setShowGoogleModal(false);
-      await syncWithBackend(googleEmailInput, false);
-    } else {
-      setError('Please enter a valid email address.');
+      setError('Google sign-in was blocked or failed. Please use the email login below.');
     }
   };
 
@@ -250,43 +236,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           </p>
         </div>
       </div>
-
-      {/* Google Email Input Modal */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0e121b] border border-slate-800 rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-white text-center">Google Account Login</h3>
-            <p className="text-xs text-slate-400 text-center">
-              Enter your Google email address to access the trading platform:
-            </p>
-            <form onSubmit={handleGoogleSubmit} className="space-y-4">
-              <input
-                type="email"
-                value={googleEmailInput}
-                onChange={(e) => setGoogleEmailInput(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-[#171a22] border border-slate-700 rounded-xl text-white text-sm outline-none focus:border-blue-500"
-                placeholder="e.g. payalyt6279@gmail.com"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowGoogleModal(false)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-blue-600/30"
-                >
-                  Continue
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       
       <div className="mt-6 flex items-center gap-2 text-slate-500 text-xs font-mono relative z-10">
         <ShieldCheck className="w-4 h-4 text-emerald-500" />

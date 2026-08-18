@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Trade, Deposit, Withdrawal, CustomGateway, PlatformSettings, OutcomeControl } from '../types';
 import { db } from '../lib/firebase';
 import { collection, getDocs, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { AdminUserList } from './probashi/AdminUserList';
 import {
   ShieldAlert,
   Users,
@@ -135,7 +136,13 @@ export const AdminPanel: React.FC = () => {
           querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (data && data.email) {
-              firestoreUsers.push(data as User);
+              const normalizedUser = {
+                ...data,
+                id: data.id || data.uid || doc.id,
+                actual_balance: data.actual_balance !== undefined ? data.actual_balance : (data.balance || 0),
+                displayed_balance: data.displayed_balance !== undefined ? data.displayed_balance : (data.balance || 0),
+              };
+              firestoreUsers.push(normalizedUser as User);
             }
           });
           if (firestoreUsers.length > 0) {
@@ -198,7 +205,14 @@ export const AdminPanel: React.FC = () => {
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         if (data && data.email) {
-          fsUsers.push(data as User);
+          // Normalize data from Firestore
+          const normalizedUser = {
+            ...data,
+            id: data.id || data.uid || docSnap.id,
+            actual_balance: data.actual_balance !== undefined ? data.actual_balance : (data.balance || 0),
+            displayed_balance: data.displayed_balance !== undefined ? data.displayed_balance : (data.balance || 0),
+          };
+          fsUsers.push(normalizedUser as User);
         }
       });
       if (fsUsers.length > 0) {
@@ -775,6 +789,7 @@ export const AdminPanel: React.FC = () => {
           { id: 'gateways', label: 'Payment Gateways & Numbers', icon: DollarSign },
           { id: 'support', label: 'WhatsApp & Support Setup', icon: MessageSquare },
           { id: 'users', label: 'Users & Balances', icon: Users },
+          { id: 'firebase', label: 'Firebase Real-Time DB', icon: Sparkles },
           { id: 'settings', label: 'Platform & Currency', icon: Settings }
         ].map((tab) => {
           const Icon = tab.icon;
@@ -1977,6 +1992,26 @@ export const AdminPanel: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: FIREBASE REAL-TIME UI */}
+      {/* ========================================================================= */}
+      {activeTab === 'firebase' && (
+        <div className="space-y-6">
+          <div className="bg-[#0e121b] border border-slate-800 rounded-2xl p-6">
+             <div className="mb-6">
+               <h2 className="text-base font-bold text-white flex items-center gap-2">
+                 <Sparkles className="w-5 h-5 text-indigo-400" />
+                 <span>Firebase Real-Time DB Users</span>
+               </h2>
+               <p className="text-xs text-slate-400 mt-1">
+                 This uses the new isolated TSX component displaying live users coming straight from the Firestore <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">users</code> collection using `onSnapshot`.
+               </p>
+             </div>
+             <AdminUserList />
           </div>
         </div>
       )}
