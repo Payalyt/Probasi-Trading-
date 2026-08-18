@@ -125,6 +125,8 @@ export function App() {
       setIsAuthenticated(true); 
       if (user.email.toLowerCase() === 'payalyt6279@gmail.com') {
         setActiveView('admin');
+      } else {
+        setActiveView('trade');
       }
     }} />;
   }
